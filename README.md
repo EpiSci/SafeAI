@@ -1,1 +1,1 @@
-# SafeAI - Experimental
+# Safe AI lab
