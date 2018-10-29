@@ -5,7 +5,7 @@ with open("README.md", 'r') as fh:
 
 setuptools.setup(
     name='safeai',
-    version='0.0.1',
+    version='0.0.2',
     author='Episys Science',
     author_email='sangsulee92@gmail.com',
     description='SafeAI',
@@ -16,5 +16,4 @@ setuptools.setup(
     classifiers=[
         'Programming Language :: Python :: 3 :: Only',
     ]
-
 )
