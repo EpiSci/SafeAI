@@ -1,1 +1,3 @@
-# Safe AI lab
+# Safe AI
+
+Reusable, easy-to-use tensorflow uncertainty module package
