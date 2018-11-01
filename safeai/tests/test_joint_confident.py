@@ -1,9 +1,19 @@
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+
+from safeai.models import joint_confident
+
 import tensorflow as tf
-import pytest
 
-import safeai.models.joint_confident as jc
+class JointConfidentModelTest(tf.test.TestCase):
+    
+    def test_confident_classifier(self):
+        with self.cached_session():
+            x = tf.square([2, 3])
+            self.assertAllEqual(x.eval(), [4, 9])
 
-@pytest.mark.filterwarnings("ignore:DeprecationWarning")
-def test_sample_model():
-    one = jc.sample_model()
-    assert one == 1
+if __name__ == "__main__":
+    tf.test.main()
