@@ -21,7 +21,7 @@ def main():
             'discriminator_fn': None,
             'generator_fn': None,
             'classifier_fn': None,
-        }) 
+        })
 
 if __name__ == "__main__":
     main()

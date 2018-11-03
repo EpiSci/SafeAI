@@ -28,7 +28,7 @@ def _build_default_classifier():
 
 
 def _build_default_generator():
-    pass
+    scope_name = 'generator_scope'
 
 
 def _build_default_discriminator():
@@ -43,8 +43,8 @@ def confident_classifier(features, labels, mode, params):
     models_dict = {}
     for model in ['discriminator', 'generator', 'classifier']:
         if not model or model not in params:
+            print('default model fetching: {} model'.format(model))
             models_dict[model] = _build_default_model_fn(model)
-            print('default model fetching in {} model'.format(model))
         else:
             models_dict[model] = params[model]
 
@@ -53,3 +53,4 @@ def confident_classifier(features, labels, mode, params):
         raise ValueError('Mode not recognized: {}'.format(mode))
     
     net = tf.feature_column.input_layer(features, params['feature_columns'])
+
