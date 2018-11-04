@@ -2,55 +2,51 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import numpy as np
 import tensorflow as tf
 
 from tensorflow.python.estimator import estimator
 from tensorflow.python.estimator import model_fn
 
-def _check_gan():
-    pass
 
-
-def _check_classifier():
-    pass
-
-
-def dcgan_fn():
-    pass
-
-
-def vgg_fn():
-    pass
-
-
-def _build_default_classifier():
+def _build_default_classifier(features, params):
     scope_name = 'Classifier'
+    input_dim = np.prod(features['input'].shape[1:])
+    output_dim = params['num_classes']
+    with tf.variable_scope(scope_name, )
 
 
-def _build_default_generator():
+def _build_default_generator(features, params):
     scope_name = 'Generator'
 
 
-def _build_default_discriminator():
+def _build_default_discriminator(features, params):
     scope_name = 'Discriminator'
     pass
 
-
-def _build_default_model_fn(model_string):
+def _build_default_model_fn(model_string, features, params):
     submodel_builders = {
         'classifier': _build_default_classifier,
         'generator': _build_default_generator,
         'discriminator': _build_default_discriminator
     }
-    return submodel_builders[model_string]()
+    return submodel_builders[model_string](features, params)
 
+
+"""
+Expected params: {
+    'classifier',
+    'discriminator',
+    'generator',
+    'num_classes',
+}
+"""
 def confident_classifier(features, labels, mode, params):
-
     submodels = {}
-    for model in ['discriminator', 'generator', 'classifier']:
-        if not model or model not in params:
-            print('default model fetching: {} model'.format(model))
-            submodels[model] = _build_default_model_fn(model)
+    for submodel_id in ['discriminator', 'generator', 'classifier']:
+        if not submodel_id or submodel_id not in params:
+            print('default model fetching: {} model'.format(submodel_id))
+            submodels[model] = _build_default_model_fn(submodel_id, features, params)
         else:
             submodels[model] = params[model]
 
@@ -61,8 +57,8 @@ def confident_classifier(features, labels, mode, params):
     # Combine three independent submodels
     net = tf.feature_column.input_layer(features, params['feature_columns'])
     logits = tf.layers.dense(net, params['num_classes'], activation=None)
+    predicted_classes = tf.argmax(logits, 1)
     confident_score = tf.nn.softmax(logits)
-
 
     # Predict
     if mode == tf.estimator.ModeKeys.PREDICT:
