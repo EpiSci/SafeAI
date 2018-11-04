@@ -53,4 +53,5 @@ def confident_classifier(features, labels, mode, params):
         raise ValueError('Mode not recognized: {}'.format(mode))
     
     net = tf.feature_column.input_layer(features, params['feature_columns'])
+    logits = tf.layers.dense(net, params['num_classes'], activation=None)
 
