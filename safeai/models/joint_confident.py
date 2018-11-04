@@ -37,12 +37,12 @@ def _build_default_discriminator():
 
 
 def _build_default_model_fn(model_string):
-    builders = {
+    submodel_builders = {
         'classifier': _build_default_classifier,
         'generator': _build_default_generator,
         'discriminator': _build_default_discriminator
     }
-    return builders[model_string]()
+    return submodel_builders[model_string]()
 
 def confident_classifier(features, labels, mode, params):
 
@@ -73,6 +73,7 @@ def confident_classifier(features, labels, mode, params):
         }
         return tf.estimator.EstimatorSpec(mode, predictions=predictions)
 
+    # Define loss, metrics for EstimatorSpec
     loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)
 
     accuracy = tf.metrics.accuracy(labels=labels,
@@ -81,13 +82,16 @@ def confident_classifier(features, labels, mode, params):
     metrics = {'accuracy': accuracy}
     tf.summary.scalar('accuracy', accuracy[1])
 
+    # Eval
     if mode == tf.estimator.ModeKeys.EVAL:
         return tf.estimator.EstimatorSpec(
             mode, loss=loss, eval_metric_ops=metrics)
 
-    # Create training op.
-    assert mode == tf.estimator.ModeKeys.TRAIN
+    # Train
+    if mode == tf.estimator.ModeKeys.TRAIN:
+        optimizer = tf.train.AdamOptimizer(learning_rate=0.003)
+        train_op = optimizer.minimize(loss,
+                                      global_step=tf.train.get_global_step())
+        return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
-    optimizer = tf.train.AdamOptimizer(learning_rate=0.003)
-    train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
-    return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
+    raise ValueError("Invalid estimator mode: reached the end of the function")
