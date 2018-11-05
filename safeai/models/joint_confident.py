@@ -9,6 +9,15 @@ from tensorflow.python.estimator import estimator
 from tensorflow.python.estimator import model_fn
 
 
+def kl_divergence_with_uniform(target_distribution):
+    # Expects (examples, classes) as shape
+    num_classes = target_distribution.shape[1]
+    uniform_distribution = tf.ones_like(target_distribution) / num_classes
+    x = tf.distributions.Categorical(probs=target_distribution)
+    y = tf.distributions.Categorical(probs=uniform_distribution)
+    return tf.distributions.kl_divergence(x, y) * num_classes  # scaling factor
+
+
 def _gradual_nodes(start, end, multiplier=5):
     """Custom nodes number generator
     The function gives the list of exponentially increase/decrease
@@ -36,7 +45,7 @@ def _gradual_nodes(start, end, multiplier=5):
         return reversed(num_nodes_list)
 
 
-def _default_classifier(input_feature_column, output_dim, reuse=False):
+def _default_classifier(input_feature_column, output_dim, reuse=True):
     # Todo: Capture custom layer units ([500, 200, 10])
     # at params['classifier_units']
     """Default classifier network.
@@ -59,7 +68,7 @@ def _default_classifier(input_feature_column, output_dim, reuse=False):
         return logits
 
 
-def _default_generator(noise_input, output_dim, reuse=False):
+def _default_generator(noise_input, output_dim, reuse=True):
     """Default generator network.
         Args:
             noise_input: (None, latent_space_size), tf.float32 tensor
@@ -79,7 +88,7 @@ def _default_generator(noise_input, output_dim, reuse=False):
         return net
 
 
-def _default_discriminator(input_feature_column, reuse=False):
+def _default_discriminator(input_feature_column, reuse=True):
     """Default discriminator network.
         Args:
             input_feature_column: (None, input_image_dim), tf.float32 tensor
@@ -110,8 +119,8 @@ def _default_submodel_fn(submodel_id):
 
 """
 Expected params: {
-    'image_column',
-    'noise_column',
+    'image',
+    'noise',
     'image_dim',
     'noise_dim',
     'num_classes',
@@ -120,12 +129,14 @@ Expected params: {
     'generator',
 }
 """
+
+
 def confident_classifier(features, labels, mode, params):
-    
+
     if mode not in [model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
                     model_fn.ModeKeys.PREDICT]:
         raise ValueError('Mode not recognized: {}'.format(mode))
-    
+
     submodels = {}
     for submodel_id in ['discriminator', 'generator', 'classifier']:
         if not submodel_id or submodel_id not in params:
@@ -140,32 +151,10 @@ def confident_classifier(features, labels, mode, params):
     discriminator_fn = submodels['discriminator']
     generator_fn = submodels['generator']
 
-    # Separate varialbes to applying gradient only to subgraph
-    classifier_variables = tf.trainable_variables(scope="classifier")
-    discriminator_variables = tf.trainable_variables(scope="discriminator")
-    generator_variables = tf.trainable_variables(scope="generator")
-
-    # Training Discriminator(1)
-    net = tf.feature_column.input_layer(features, params['image_column'])
-    noise = tf.feature_column.input_layer(features, params['noise'])
-    score_real = discriminator_fn(input_image)
-    generated_image = generator_fn(noise)
-    score_fake = discriminator_fn(generated_image)
-
-
-    # Training Generator(2)
-
-
-
-
-
-
-
-    train_discriminator = tf.train.AdamOptimizer(1e-4).minimize(D_loss, var_list=D_vars)
-    train_generator = tf.train.AdamOptimizer(1e-4).minimize(G_loss, var_list=G_vars)
-
-
-    predicted_classes = tf.argmax(logits, 1)
+    image_input_layer = tf.feature_column.input_layer(features,
+                                                      params['image'])
+    logits = classifier_fn(image_input_layer)
+    predicted_classes = tf.argmax(logits, axis=1)
     confident_score = tf.nn.softmax(logits)
 
     # Predict
@@ -177,25 +166,94 @@ def confident_classifier(features, labels, mode, params):
         }
         return tf.estimator.EstimatorSpec(mode, predictions=predictions)
 
-    # Define loss, metrics for EstimatorSpec
-    loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)
+    # Separate variables to applying gradient only to subgraph
+    classifier_variables = tf.trainable_variables(scope="classifier")
+    discriminator_variables = tf.trainable_variables(scope="discriminator")
+    generator_variables = tf.trainable_variables(scope="generator")
 
+    noise = tf.feature_column.input_layer(features, params['noise'])
+
+    # Todo: Take loss from params Mon Nov  5 20:14:35 2018
+    # Discriminator loss
+    # Real image
+    d_score_real = discriminator_fn(image_input_layer)
+
+    # Fake image
+    generated_fake_image = generator_fn(noise)
+    d_score_fake = discriminator_fn(generated_fake_image)
+
+    d_loss_real = tf.reduce_mean(
+        tf.nn.sigmoid_cross_entropy_with_logits(logits=d_score_real,
+                                                labels=tf.ones_like(d_score_real))
+    )
+
+    d_loss_fake = tf.reduce_mean(
+        tf.nn.sigmoid_cross_entropy_with_logits(logits=d_score_fake,
+                                                labels=tf.zeros_like(d_score_fake))
+    )
+
+    # Discriminator loss
+    discriminator_loss = d_loss_real + d_loss_fake
+
+    g_loss_from_d = tf.reduce_mean(
+        tf.nn.sigmoid_cross_entropy_with_logits(logits=d_score_fake,
+                                                labels=tf.ones_like(d_score_fake))
+    )
+
+    logits_fake = classifier_fn(generated_fake_image)
+    predicted_classes = tf.argmax(logits_fake, axis=1)
+    confident_score = tf.nn.softmax(logits)
+    classifier_uniform_kld = kl_divergence_with_uniform(confident_score)
+
+    # Generator loss
+    generator_loss = g_loss_from_d + (params['beta'] * classifier_uniform_kld)
+
+    # Classifier loss
+    nll_loss = tf.losses.sparse_softmax_cross_entropy(labels=labels,
+                                                      logits=logits)
+    classifier_loss = nll_loss + (params['beta'] * classifier_uniform_kld)
+
+    # Define three training operations
+    optimizer_discriminator = tf.train.AdamOptimizer(1e-4)
+    train_discriminator_op =\
+        optimizer_discriminator.minimize(discriminator_loss,
+                                         global_step=tf.train.get_global_step(),
+                                         var_list=discriminator_variables)
+    optimizer_generator = tf.train.AdamOptimizer(1e-4)
+    train_generator_op =\
+        optimizer_generator.minimize(generator_loss,
+                                     global_step=tf.train.get_global_step(),
+                                     var_list=generator_variables)
+
+    optimizer_classifier = tf.train.AdamOptimizer(1e-4)
+    train_classifier_op =\
+        optimizer_classifier.minimize(classifier_loss,
+                                      global_step=tf.train.get_global_step(),
+                                      var_list=classifier_variables)
+
+    grouped_ops = tf.group([train_discriminator_op,
+                            train_generator_op,
+                            train_classifier_op])
+    loss_sum = discriminator_loss + generator_loss + classifier_loss
+
+    # Define accuracy, metrics
     accuracy = tf.metrics.accuracy(labels=labels,
                                    predictions=predicted_classes,
                                    name='acc_op')
+
     metrics = {'accuracy': accuracy}
-    tf.summary.scalar('accuracy', accuracy[1])
 
     # Eval
     if mode == tf.estimator.ModeKeys.EVAL:
         return tf.estimator.EstimatorSpec(
-            mode, loss=loss, eval_metric_ops=metrics)
+            mode, loss=loss_sum, eval_metric_ops=metrics)
 
-    # Train
+    # Train: Alternative learning
     if mode == tf.estimator.ModeKeys.TRAIN:
-        optimizer = tf.train.AdamOptimizer(learning_rate=0.003)
-        train_op = optimizer.minimize(loss,
-                                      global_step=tf.train.get_global_step())
-        return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
+        return tf.estimator.EstimatorSpec(mode,
+                                          loss=loss_sum,
+                                          train_op=grouped_ops)
+
+    tf.summary.scalar('accuracy', accuracy[1])
 
     raise ValueError("Invalid estimator mode: reached the end of the function")
