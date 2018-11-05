@@ -9,36 +9,49 @@ from tensorflow.python.estimator import estimator
 from tensorflow.python.estimator import model_fn
 
 
-def _build_default_classifier(features, params):
+def _default_classifier_fn(features, params):
+    # Todo: Capture custom layer units ([500, 200, 10] ) at params['classifier_units']
     scope_name = 'Classifier'
-    input_dim = np.prod(features['input'].shape[1:])
+
+    image_dim = np.prod(features['image'].shape[1:])
     output_dim = params['num_classes']
-    with tf.variable_scope(scope_name, )
+    units_in_layers = reversed([output_dim*(5**x) for x in range(10) if output_dim*(5**x) < image_dim])
+    with tf.variable_scope(scope_name) as scope:
+        net = tf.feature_column.input_layer(features, params['image_column'])
+        for hidden_units in units_in_layers:
+            net = tf.layers.dense(net, units=hidden_units, activation=tf.nn.relu)
+        logits = tf.layers.dense(net, params['num_classes'], activation=None)
+        return logits
 
 
-def _build_default_generator(features, params):
+def _default_generator(features, params):
+    # Todo: fixing Mon Nov  5 10:57:10 2018
     scope_name = 'Generator'
 
 
-def _build_default_discriminator(features, params):
+def _default_discriminator_fn(features, params):
     scope_name = 'Discriminator'
     pass
 
 def _build_default_model_fn(model_string, features, params):
     submodel_builders = {
-        'classifier': _build_default_classifier,
-        'generator': _build_default_generator,
-        'discriminator': _build_default_discriminator
+        'classifier': _default_classifier_fn,
+        'generator': _default_generator_fn,
+        'discriminator': _default_discriminator_fn
     }
     return submodel_builders[model_string](features, params)
 
 
 """
 Expected params: {
+    'image_column',
+    'noise_column',
+    'image_dim',
+    'noise_dim',
+    'num_classes',
     'classifier',
     'discriminator',
     'generator',
-    'num_classes',
 }
 """
 def confident_classifier(features, labels, mode, params):
@@ -55,8 +68,11 @@ def confident_classifier(features, labels, mode, params):
         raise ValueError('Mode not recognized: {}'.format(mode))
 
     # Combine three independent submodels
-    net = tf.feature_column.input_layer(features, params['feature_columns'])
-    logits = tf.layers.dense(net, params['num_classes'], activation=None)
+    classifier = submodels['classifier']
+    discriminator = submodels['discriminator']
+    generator = submodels['generator']
+
+    logits =
     predicted_classes = tf.argmax(logits, 1)
     confident_score = tf.nn.softmax(logits)
 
