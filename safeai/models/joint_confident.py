@@ -11,8 +11,8 @@ from tensorflow.python.estimator import model_fn
 
 def kl_divergence_with_uniform(target_distribution):
     # Expects (examples, classes) as shape
-    num_classes = target_distribution.shape[1]
-    uniform_distribution = tf.ones_like(target_distribution) / num_classes
+    num_classes = tf.cast(target_distribution.shape[1], tf.float32)
+    uniform_distribution = tf.divide(tf.ones_like(target_distribution), num_classes)
     x = tf.distributions.Categorical(probs=target_distribution)
     y = tf.distributions.Categorical(probs=uniform_distribution)
     return tf.distributions.kl_divergence(x, y) * num_classes  # scaling factor
@@ -56,7 +56,7 @@ def _default_classifier(input_feature_column, output_dim, reuse=True):
         Returns:
             net: the generator output node
     """
-    image_dim = np.prod(input_feature_column.shape[1:])
+    image_dim = int(np.prod(input_feature_column.shape[1:]))
     units_in_layers = _gradual_nodes(image_dim, output_dim)
     with tf.variable_scope("classifier", reuse=reuse):
         net = input_feature_column
@@ -68,7 +68,7 @@ def _default_classifier(input_feature_column, output_dim, reuse=True):
         return logits
 
 
-def _default_generator(noise_input, output_dim, reuse=True):
+def _default_generator(noise_input, image_dim, reuse=True):
     """Default generator network.
         Args:
             noise_input: (None, latent_space_size), tf.float32 tensor
@@ -77,14 +77,16 @@ def _default_generator(noise_input, output_dim, reuse=True):
         Returns:
             net: the generator output node
     """
+    if type(image_dim) is list or type(image_dim) is tuple:
+        image_dim = np.prod(image_dim)
     noise_dim = noise_input.shape[1]
-    units_in_layers = _gradual_nodes(noise_dim, output_dim)
+    units_in_layers = _gradual_nodes(noise_dim, image_dim)
     with tf.variable_scope("generator", reuse=reuse):
         for hidden_units in units_in_layers:
             net = tf.layers.dense(noise_input,
                                   units=hidden_units,
                                   activation=tf.nn.relu)
-        net = tf.layers.dense(net, units=output_dim, activation=None)
+        net = tf.layers.dense(net, units=image_dim, activation=None)
         return net
 
 
@@ -126,9 +128,8 @@ Expected params: {
     'generator',
 }
 """
-
-
 def confident_classifier(features, labels, mode, params):
+    labels = tf.cast(labels, tf.int32)
 
     if mode not in [model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
                     model_fn.ModeKeys.PREDICT]:
@@ -136,7 +137,7 @@ def confident_classifier(features, labels, mode, params):
 
     submodels = {}
     for submodel_id in ['discriminator', 'generator', 'classifier']:
-        if not submodel_id or submodel_id not in params:
+        if not params[submodel_id] or submodel_id not in params:
             print('default model fetching: {} model'.format(submodel_id))
             submodels[submodel_id] = _default_submodel_fn(submodel_id)
         else:
@@ -150,7 +151,7 @@ def confident_classifier(features, labels, mode, params):
 
     image_input_layer = tf.feature_column.input_layer(features,
                                                       params['image'])
-    logits = classifier_fn(image_input_layer)
+    logits = classifier_fn(image_input_layer, params['output_dim'], reuse=False)
     predicted_classes = tf.argmax(logits, axis=1)
     confident_score = tf.nn.softmax(logits)
 
@@ -163,20 +164,17 @@ def confident_classifier(features, labels, mode, params):
         }
         return tf.estimator.EstimatorSpec(mode, predictions=predictions)
 
-    # Separate variables to applying gradient only to subgraph
-    classifier_variables = tf.trainable_variables(scope="classifier")
-    discriminator_variables = tf.trainable_variables(scope="discriminator")
-    generator_variables = tf.trainable_variables(scope="generator")
 
     noise = tf.feature_column.input_layer(features, params['noise'])
 
     # Todo: Take loss from params Mon Nov  5 20:14:35 2018
+    # Todo: reuse reversed bool Tue 06 Nov 2018 05:08:16 PM KST
     # Discriminator loss
     # Real image
-    d_score_real = discriminator_fn(image_input_layer)
+    d_score_real = discriminator_fn(image_input_layer, reuse=False)
 
     # Fake image
-    generated_fake_image = generator_fn(noise)
+    generated_fake_image = generator_fn(noise, params['image_dim'], reuse=False)
     d_score_fake = discriminator_fn(generated_fake_image)
 
     d_loss_real = tf.reduce_mean(
@@ -197,7 +195,7 @@ def confident_classifier(features, labels, mode, params):
                                                 labels=tf.ones_like(d_score_fake))
     )
 
-    logits_fake = classifier_fn(generated_fake_image)
+    logits_fake = classifier_fn(generated_fake_image, params['output_dim'])
     predicted_classes = tf.argmax(logits_fake, axis=1)
     confident_score = tf.nn.softmax(logits)
     classifier_uniform_kld = kl_divergence_with_uniform(confident_score)
@@ -209,6 +207,11 @@ def confident_classifier(features, labels, mode, params):
     nll_loss = tf.losses.sparse_softmax_cross_entropy(labels=labels,
                                                       logits=logits)
     classifier_loss = nll_loss + (params['beta'] * classifier_uniform_kld)
+
+    # Separate variables to applying gradient only to subgraph
+    classifier_variables = tf.trainable_variables(scope="classifier")
+    discriminator_variables = tf.trainable_variables(scope="discriminator")
+    generator_variables = tf.trainable_variables(scope="generator")
 
     # Define three training operations
     optimizer_discriminator = tf.train.AdamOptimizer(1e-4)
@@ -231,6 +234,9 @@ def confident_classifier(features, labels, mode, params):
     grouped_ops = tf.group([train_discriminator_op,
                             train_generator_op,
                             train_classifier_op])
+
+    # Has nothing to do with actual graph operation, just summing up the losses for
+    # Checking progress
     loss_sum = discriminator_loss + generator_loss + classifier_loss
 
     # Define accuracy, metrics
