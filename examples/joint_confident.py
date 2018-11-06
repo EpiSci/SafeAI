@@ -53,20 +53,22 @@ def main():
     """
     batch_size = 128
     train_steps = 1000
+    noise_size = 100
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     image_width, image_height = x_train.shape[1:]
     image_feature = tf.feature_column.numeric_column('image', shape=[image_width, image_height])
+    noise_feature = tf.feature_column.numeric_column('noise', shape=[noise_size])
 
     joint_confident_classifier = tf.estimator.Estimator(
         model_fn=joint_confident,
         params={
-            'feature_columns': [image_feature],
-            'num_classes': 10,
+            'feature_columns': [image_feature, noise_feature],
             'discriminator': None,
             'generator': None,
             'classifier': None,
         }
     )
+
     joint_confident_classifier.train(
         input_fn=lambda: train_input_fn(x_train, y_train, batch_size),
         steps=train_steps

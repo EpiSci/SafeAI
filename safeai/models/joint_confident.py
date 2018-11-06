@@ -121,9 +121,6 @@ def _default_submodel_fn(submodel_id):
 Expected params: {
     'image',
     'noise',
-    'image_dim',
-    'noise_dim',
-    'num_classes',
     'classifier',
     'discriminator',
     'generator',
