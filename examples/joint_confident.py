@@ -62,9 +62,9 @@ def main():
         params={
             'feature_columns': [image_feature],
             'num_classes': 10,
-            'discriminator_fn': None,
-            'generator_fn': None,
-            'classifier_fn': None,
+            'discriminator': None,
+            'generator': None,
+            'classifier': None,
         }
     )
     joint_confident_classifier.train(
