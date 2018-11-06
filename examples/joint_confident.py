@@ -57,17 +57,17 @@ def main():
     docstring
     """
     batch_size = 128
-    train_steps = 1000
+    train_steps = 100000
     noise_dim = 100
     output_dim = 10
     image_dim = (28, 28)
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train, x_test = x_train/255., x_test/255.
-    y_train, y_test = y_train.astype(np.int32), y_test.astype(np.int32)
+    # Todo: one-hot Tue 06 Nov 2018 09:36:29 PM KST
     image_width, image_height = x_train.shape[1:]
 
-    image_feature = tf.feature_column.numeric_column('image', shape=[image_width, image_height])
-    noise_feature = tf.feature_column.numeric_column('noise', shape=[noise_dim])
+    image_feature = tf.feature_column.numeric_column('image', shape=(image_width, image_height))
+    noise_feature = tf.feature_column.numeric_column('noise', shape=noise_dim)
 
     # Todo: Reduce params['dim'] Tue 06 Nov 2018 05:05:10 PM KST
     joint_confident_classifier = tf.estimator.Estimator(

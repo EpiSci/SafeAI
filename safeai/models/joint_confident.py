@@ -235,10 +235,6 @@ def confident_classifier(features, labels, mode, params):
                             train_generator_op,
                             train_classifier_op])
 
-    # Has nothing to do with actual graph operation, just summing up the losses for
-    # Checking progress
-    loss_sum = discriminator_loss + generator_loss + classifier_loss
-
     # Define accuracy, metrics
     accuracy = tf.metrics.accuracy(labels=labels,
                                    predictions=predicted_classes,
@@ -254,9 +250,11 @@ def confident_classifier(features, labels, mode, params):
     # Train: Alternative learning
     if mode == tf.estimator.ModeKeys.TRAIN:
         return tf.estimator.EstimatorSpec(mode,
-                                          loss=loss_sum,
+                                          loss=nll_loss,
                                           train_op=grouped_ops)
-
-    tf.summary.scalar('accuracy', accuracy[1])
+        tf.summary.scalar('accuracy', accuracy[1])
+        tf.summary.scalar('discriminator_loss', discriminator_loss)
+        tf.summary.scalar('generator_loss', generator_loss)
+        tf.summary.scalar('classifier_loss', classifier_loss)
 
     raise ValueError("Invalid estimator mode: reached the end of the function")
