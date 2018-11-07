@@ -4,15 +4,21 @@ from safeai.models.joint_confident import confident_classifier
 tf.logging.set_verbosity(tf.logging.INFO)
 mnist = tf.keras.datasets.mnist
 
+def dcgan_discriminator():
+    """
+    docstring
+    """
+    pass
 
-def dcgan():
+def dcgan_generator():
     """
     docstring
     """
     pass
 
 
-def vgg():
+def vgg_classifier():
+    from tensorflow.contrib.slim.nets import vgg16
     """
     docstring
     """
@@ -31,35 +37,29 @@ def train_input_fn(features, labels, noise_size, batch_size):
     return dataset
 
 
-def eval_input_fn(features, labels, batch_size):
+def eval_input_fn(features, labels, noise_size, batch_size):
     """
-    docstring
+    Used in both evaluation, prediction
     """
-    features = dict(features)
+    noise = np.random.random((features.shape[0], noise_size))
+    features_dict = {'image': features, 'noise': noise}
     if labels is None:
-        # No labels, use only features.
-        inputs = features
+        inputs = features_dict
     else:
-        inputs = (features, labels)
+        inputs = (features_dict, labels)
 
-    # Convert the inputs to a Dataset.
-    dataset = tf.data.Dataset.from_tensor_slices(inputs)
-
-    # Batch the examples
-    assert batch_size is not None, "batch_size must not be None"
-    dataset = dataset.batch(batch_size)
-
-    # Return the dataset.
+    dataset = tf.data.Dataset.from_tensor_slices(inputs).batch(batch_size)
     return dataset
+
 
 def main():
     """
     docstring
     """
-    batch_size = 128
-    train_steps = 100000
+    batch_size = 256
+    train_steps = 1000
     noise_dim = 100
-    output_dim = 10
+    num_classes = 10
     image_dim = (28, 28)
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train, x_test = x_train/255., x_test/255.
@@ -77,11 +77,12 @@ def main():
             'noise': [noise_feature],
             'image_dim': image_dim,
             'noise_dim': noise_dim,
-            'output_dim': output_dim,
+            'num_classes': num_classes,
             'discriminator': None,
             'generator': None,
             'classifier': None,
-            'beta': 1,
+            'learning_rate': 0.001,
+            'beta': 0.0,
         })
 
     joint_confident_classifier.train(
@@ -90,7 +91,7 @@ def main():
     )
 
     eval_result = joint_confident_classifier.evaluate(
-        input_fn=lambda: eval_input_fn(x_test, y_test, batch_size),
+        input_fn=lambda: eval_input_fn(x_test, y_test, noise_dim, batch_size),
         steps=train_steps
     )
     print('\nTest set accuracy: {accuracy:0.3f}\n'.format(**eval_result))
