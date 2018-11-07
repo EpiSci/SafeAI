@@ -57,7 +57,7 @@ def main():
     docstring
     """
     batch_size = 256
-    train_steps = 1000
+    train_steps = 10000
     noise_dim = 100
     num_classes = 10
     image_dim = (28, 28)
@@ -82,7 +82,7 @@ def main():
             'generator': None,
             'classifier': None,
             'learning_rate': 0.001,
-            'beta': 0.0,
+            'beta': 1.0,
         })
 
     joint_confident_classifier.train(

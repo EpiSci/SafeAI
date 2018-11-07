@@ -192,17 +192,16 @@ def confident_classifier(features, labels, mode, params):
     )
 
     logits_fake = classifier_fn(generated_fake_image, params['num_classes'])
-    predicted_classes = tf.argmax(logits_fake, axis=1)
-    confident_score = tf.nn.softmax(logits)
-    classifier_uniform_kld = kl_divergence_with_uniform(confident_score)
+    confident_score_fake = tf.nn.softmax(logits_fake)
+    classifier_uniform_kld_fake = kl_divergence_with_uniform(confident_score_fake)
 
     # Generator loss
-    generator_loss = g_loss_from_d + (params['beta'] * classifier_uniform_kld)
+    generator_loss = g_loss_from_d + (params['beta'] * classifier_uniform_kld_fake)
 
     # Classifier loss
     nll_loss = tf.losses.sparse_softmax_cross_entropy(labels=labels,
                                                       logits=logits)
-    classifier_loss = nll_loss + (params['beta'] * classifier_uniform_kld)
+    classifier_loss = nll_loss + (params['beta'] * classifier_uniform_kld_fake)
 
     # Separate variables to applying gradient only to subgraph
     # valid
@@ -236,8 +235,7 @@ def confident_classifier(features, labels, mode, params):
 
     # Define accuracy, metrics
     accuracy = tf.metrics.accuracy(labels=labels,
-                                   predictions=predicted_classes,
-                                   name='acc_op')
+                                   predictions=predicted_classes)
 
     metrics = {'accuracy': accuracy}
 
