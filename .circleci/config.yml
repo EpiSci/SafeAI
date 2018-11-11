@@ -22,8 +22,6 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            python3 -m venv venv
-            . venv/bin/activate
             pip install -r test-requirements.txt
 
       - save_cache:
@@ -34,7 +32,6 @@ jobs:
       - run:
           name: run tests
           command: |
-            . venv/bin/activate
             python -m unittest discover
 
   test-py2-tfcpu:
@@ -55,8 +52,6 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            python -m venv venv
-            . venv/bin/activate
             pip install -r test-requirements.txt
 
       - save_cache:
@@ -67,7 +62,6 @@ jobs:
       - run:
           name: run tests
           command: |
-            . venv/bin/activate
             python -m unittest discover
 
 workflows:
