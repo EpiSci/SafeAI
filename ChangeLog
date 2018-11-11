@@ -1,0 +1,60 @@
+CHANGES
+=======
+
+* Fix import error from models/\_\_init\_\_.py
+* Testcode branch remove
+* Add distribution/ utils
+* WIP on master: d7ac6b9 Merge branch 'master' of https://github.com/2sang/safeai
+* index on master: d7ac6b9 Merge branch 'master' of https://github.com/2sang/safeai
+* Add test code for joint\_confident model
+* Add test code for confident\_classifier
+* Add mnist test case
+* Subpackaging joint\_confident, Add README.md
+* Add joint\_confident model, utils
+* Fix accuracy issue
+* take peripheral functions to utils/
+* Fix shape issue at training stage
+* Fix some bugs, still need to fix shape check at input\_layer()
+* Modify feature column inputs
+* Add full example logic
+* Add confident\_classifier example to examples/
+* Done rough sketch, need some test code with debugging
+* Add three default fully-connected submodels logic
+* Change submodel details
+* Build default classifier in confident\_classifier
+* Change working env
+* Change pylint indent config (2->4), Add training section in joint\_confident.py
+* Add dense layer, need to implement each submodels
+* Fix directory structure
+* Move working files to main directory
+* Move practice test code to assets/practices/\*
+* Move all practice codes to assets/practices/\*
+* zmodify joint\_confident.py
+* Add Circleci badge
+* Add base circleci config
+* Add joint\_confident test/example/model
+* Add badges, small descriptions
+* Resize temporal logo
+* Resize logo
+* Add temporal logo
+* Add joint confident
+* Remove pytest.ini, will employ tf.test
+* Modify Readme.md
+* Add pytest.ini
+* Add Confident Classifier model, test as well
+* classification
+* Remove sample models
+* Change release version 0.0.1 to 0.0.2 to fix pypi issue
+* Add files via upload
+* Delete simple\_fibonachi.py
+* Add files via upload
+* first commit
+* Changed filenames
+* Add matmul and vgg examples
+* [ADD] HW\_DOYUP
+* Add pylintrc for linting, filename change vgg123.py to sample\_model.py
+* Add vgg test file
+* Add sample model instead of vgg123.py
+* Add boilerplate code
+* Init
+* Init

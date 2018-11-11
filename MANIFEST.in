@@ -1,0 +1,5 @@
+include ChangeLog LICENSE MANIFEST.in README.md requirements.txt
+prune safeai/tests
+prune safeai/examples
+exclude test-requirements.txt
+global-exclude *.pyc
