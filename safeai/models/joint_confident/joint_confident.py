@@ -161,6 +161,7 @@ def confident_classifier(features, labels, mode, params):
         return tf.estimator.EstimatorSpec(mode, predictions=predictions)
 
 
+    labels = tf.cast(labels, tf.int32)
     noise = tf.feature_column.input_layer(features, params['noise'])
 
     # Todo: Take loss from params Mon Nov  5 20:14:35 2018
