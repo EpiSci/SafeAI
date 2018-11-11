@@ -22,7 +22,7 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            pip install -r test-requirements.txt
+            pip install --quiet --user -r test-requirements.txt
 
       - save_cache:
           paths:
@@ -52,7 +52,7 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            pip install -r test-requirements.txt
+            pip install --quiet --user -r test-requirements.txt
 
       - save_cache:
           paths:
