@@ -125,6 +125,7 @@ Expected params: {
 }
 """
 def confident_classifier(features, labels, mode, params):
+    labels = tf.cast(labels, tf.int32)
 
     if mode not in [model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
                     model_fn.ModeKeys.PREDICT]:
