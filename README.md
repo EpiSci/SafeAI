@@ -12,6 +12,11 @@
 Reusable, easy-to-use tensorflow uncertainty module package.  
 Under active development.
 
+Considering deep learning workflow, uncertainty plays a critical role when applying in real applications and is essential property in a safety issue. Autonomous driving, robotics, or critical decision-making, for instance, such domains are especially caring for safety which is uncertainty in deep learning.
+
+Recently, plenty of researches related to uncertainty is actively ongoing. In this project, we leverage TensorFlow to additionally model uncertainty in standard deep learning architectures. Essentially, we focus on reusability and easy-to-use that only least numbers of parameters are necessary to run target functions.
+
+
 ## Install
 ```bash
 pip install safeai
