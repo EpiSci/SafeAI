@@ -16,7 +16,7 @@ Considering deep learning workflow, uncertainty plays a critical role when apply
 
 Recently, plenty of researches related to uncertainty is actively ongoing. In this project, we leverage TensorFlow to additionally model uncertainty in standard deep learning architectures. Essentially, we focus on reusability and easy-to-use that only least numbers of parameters are necessary to run target functions.
 
-ß
+
 ## Install
 ```bash
 pip install safeai
