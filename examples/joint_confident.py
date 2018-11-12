@@ -4,11 +4,13 @@ from safeai.models.joint_confident import confident_classifier
 tf.logging.set_verbosity(tf.logging.INFO)
 mnist = tf.keras.datasets.mnist
 
+
 def dcgan_discriminator():
     """
     docstring
     """
     pass
+
 
 def dcgan_generator():
     """
@@ -18,7 +20,7 @@ def dcgan_generator():
 
 
 def vgg_classifier():
-    from tensorflow.contrib.slim.nets import vgg16
+    # from tensorflow.contrib.slim.nets import vgg16
     """
     docstring
     """
@@ -66,7 +68,8 @@ def main():
     # Todo: one-hot Tue 06 Nov 2018 09:36:29 PM KST
     image_width, image_height = x_train.shape[1:]
 
-    image_feature = tf.feature_column.numeric_column('image', shape=(image_width, image_height))
+    image_feature = tf.feature_column.numeric_column(
+            'image', shape=(image_width, image_height))
     noise_feature = tf.feature_column.numeric_column('noise', shape=noise_dim)
 
     # Todo: Reduce params['dim'] Tue 06 Nov 2018 05:05:10 PM KST
@@ -86,7 +89,8 @@ def main():
         })
 
     joint_confident_classifier.train(
-        input_fn=lambda: train_input_fn(x_train, y_train, noise_dim, batch_size),
+        input_fn=lambda: train_input_fn(x_train, y_train,
+                                        noise_dim, batch_size),
         steps=train_steps
     )
 
