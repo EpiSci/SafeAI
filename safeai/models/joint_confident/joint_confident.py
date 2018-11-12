@@ -174,12 +174,12 @@ def confident_classifier(features, labels, mode, params):
     d_score_fake = discriminator_fn(generated_fake_image)
 
     d_loss_real = tf.reduce_mean(
-        tf.nn.sigmoid_cross_entropy_with_logits_v2(logits=d_score_real,
+        tf.nn.sigmoid_cross_entropy_with_logits(logits=d_score_real,
                                                    labels=tf.ones_like(d_score_real))
     )
 
     d_loss_fake = tf.reduce_mean(
-        tf.nn.sigmoid_cross_entropy_with_logits_v2(logits=d_score_fake,
+        tf.nn.sigmoid_cross_entropy_with_logits(logits=d_score_fake,
                                                    labels=tf.zeros_like(d_score_fake))
     )
 
@@ -187,7 +187,7 @@ def confident_classifier(features, labels, mode, params):
     discriminator_loss = d_loss_real + d_loss_fake
 
     g_loss_from_d = tf.reduce_mean(
-        tf.nn.sigmoid_cross_entropy_with_logits_v2(logits=d_score_fake,
+        tf.nn.sigmoid_cross_entropy_with_logits(logits=d_score_fake,
                                                    labels=tf.ones_like(d_score_fake))
     )
 
@@ -199,7 +199,7 @@ def confident_classifier(features, labels, mode, params):
     generator_loss = g_loss_from_d + (params['beta'] * classifier_uniform_kld_fake)
 
     # Classifier loss
-    nll_loss = tf.losses.sparse_softmax_cross_entropy_v2(labels=labels,
+    nll_loss = tf.losses.sparse_softmax_cross_entropy(labels=labels,
                                                          logits=logits)
     classifier_loss = nll_loss + (params['beta'] * classifier_uniform_kld_fake)
 
