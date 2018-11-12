@@ -10,7 +10,7 @@ import tensorflow as tf
 
 # Disable debugging logs
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 SAMPLE_SIZE = 512
@@ -25,20 +25,23 @@ def dummy_input_fn():
     image = tf.random_uniform([SAMPLE_SIZE, 784])
     noise = tf.random_uniform([SAMPLE_SIZE, 100])
     labels = tf.random_uniform([SAMPLE_SIZE, 1], maxval=9, dtype=tf.int32)
-    dataset = tf.data.Dataset.from_tensor_slices(({'image': image, 'noise': noise}, labels))
+    dataset = tf.data.Dataset.from_tensor_slices(
+                ({'image': image, 'noise': noise}, labels))
     return dataset.repeat().batch(BATCH_SIZE)
 
 
 def make_confident_classifier_estimator():
-    image_feature = tf.feature_column.numeric_column('image', shape=MNIST_IMAGE_DIM)
-    noise_feature = tf.feature_column.numeric_column('noise', shape=NOISE_DIM)
+    image_feature = tf.feature_column.numeric_column('image',
+                                                     shape=MNIST_IMAGE_DIM)
+    noise_feature = tf.feature_column.numeric_column('noise',
+                                                     shape=NOISE_DIM)
     return tf.estimator.Estimator(
         model_fn=confident_classifier,
         params={
             'image': [image_feature],
             'noise': [noise_feature],
-            'image_dim': MNIST_IMAGE_DIM, # Todo: Surplus param
-            'noise_dim': NOISE_DIM, # Todo: Surplus param
+            'image_dim': MNIST_IMAGE_DIM,  # Todo: Surplus param
+            'noise_dim': NOISE_DIM,  # Todo: Surplus param
             'num_classes': MNIST_NUM_CLASSES,
             'discriminator': None,
             'generator': None,
@@ -47,7 +50,12 @@ def make_confident_classifier_estimator():
             'beta': 1.0,
         })
 
+
 class JointConfidentModelTest(tf.test.TestCase):
+
+    def temp_input_fn(self):
+        return {'image': tf.random_uniform([3, 28, 28]),
+                'noise': tf.random_uniform([3, 100])}
 
     def test_confident_classifier(self):
         classifier = make_confident_classifier_estimator()
@@ -61,31 +69,32 @@ class JointConfidentModelTest(tf.test.TestCase):
         accuracy = eval_results['accuracy']
 
         self.assertEqual(nll_loss.shape, ())
-        # Need to investigate the behavior of `global_step`, along with minimize()
-        self.assertEqual(12, global_step) 
+        # Need to investigate the behavior of global_step, along with minimize
+        self.assertEqual(12, global_step)
         self.assertEqual(accuracy.shape, ())
 
-        temp_input_fn = lambda: {'image':tf.random_uniform([3, 28, 28]), 
-                                 'noise': tf.random_uniform([3, 100])}
-        predictions_generator = classifier.predict(temp_input_fn)
+        predictions_generator = classifier.predict(self.temp_input_fn)
         for _ in range(3):
             predictions = next(predictions_generator)
             self.assertEqual(predictions['probabilities'].shape, (10, ))
             self.assertEqual(predictions['classes'].shape, ())
-    
+
     def confident_classifier_model_fn_helper(self, mode):
-        
+
         num_samples = 3
-        features = {'image':tf.random_uniform([num_samples, 28, 28]), 
+        features = {'image': tf.random_uniform([num_samples, 28, 28]),
                     'noise': tf.random_uniform([num_samples, 100])}
-        labels = tf.random_uniform([num_samples, 1], minval=0, maxval=9, dtype=tf.int32)
-        image_feature = tf.feature_column.numeric_column('image', shape=MNIST_IMAGE_DIM)
-        noise_feature = tf.feature_column.numeric_column('noise', shape=NOISE_DIM)
+        labels = tf.random_uniform([num_samples, 1], minval=0, maxval=9,
+                                   dtype=tf.int32)
+        image_feature = tf.feature_column.numeric_column(
+                                        'image', shape=MNIST_IMAGE_DIM)
+        noise_feature = tf.feature_column.numeric_column(
+                                        'noise', shape=NOISE_DIM)
         params = {
             'image': [image_feature],
             'noise': [noise_feature],
-            'image_dim': MNIST_IMAGE_DIM, # Todo: Surplus param
-            'noise_dim': NOISE_DIM, # Todo: Surplus param
+            'image_dim': MNIST_IMAGE_DIM,  # Todo: Surplus param
+            'noise_dim': NOISE_DIM,  # Todo: Surplus param
             'num_classes': MNIST_NUM_CLASSES,
             'discriminator': None,
             'generator': None,
@@ -97,7 +106,8 @@ class JointConfidentModelTest(tf.test.TestCase):
 
         if mode == tf.estimator.ModeKeys.PREDICT:
             predictions = spec.predictions
-            self.assertAllEqual(predictions['probabilities'].shape, (num_samples, 10))
+            self.assertAllEqual(predictions['probabilities'].shape,
+                                (num_samples, 10))
             self.assertEqual(predictions['probabilities'].dtype, tf.float32)
             self.assertAllEqual(predictions['classes'].shape, (num_samples,))
             self.assertEqual(predictions['classes'].dtype, tf.int64)
@@ -116,38 +126,37 @@ class JointConfidentModelTest(tf.test.TestCase):
 
     def test_fn_train_mode(self):
         self.confident_classifier_model_fn_helper(tf.estimator.ModeKeys.TRAIN)
-        
+
     def test_fn_eval_mode(self):
         self.confident_classifier_model_fn_helper(tf.estimator.ModeKeys.EVAL)
-        
-    def test_fn_predict_mode(self):
-        self.confident_classifier_model_fn_helper(tf.estimator.ModeKeys.PREDICT)
 
-    def a():
-        pass
+    def test_fn_predict_mode(self):
+        self.confident_classifier_model_fn_helper(
+                            tf.estimator.ModeKeys.PREDICT)
+
 
 class Benchmarks(tf.test.Benchmark):
 
-  def benchmark_train_step_time(self):
-    classifier = make_confident_classifier_estimator()
-    # Run one step to warmup any use of the GPU.
-    classifier.train(input_fn=dummy_input_fn, steps=1)
+    def benchmark_train_step_time(self):
+        classifier = make_confident_classifier_estimator()
+        # Run one step to warmup any use of the GPU.
+        classifier.train(input_fn=dummy_input_fn, steps=1)
 
-    num_steps = 1000 
-    name = 'train_step_time'
+        num_steps = 1000
+        name = 'train_step_time'
 
-    start = time.time()
-    classifier.train(input_fn=dummy_input_fn, steps=num_steps)
-    end = time.time()
+        start = time.time()
+        classifier.train(input_fn=dummy_input_fn, steps=num_steps)
+        end = time.time()
 
-    wall_time = (end - start) / num_steps
-    self.report_benchmark(
-        iters=num_steps,
-        wall_time=wall_time,
-        name=name,
-        extras={
-            'examples_per_sec': BATCH_SIZE / wall_time
-        })
+        wall_time = (end - start) / num_steps
+        self.report_benchmark(
+            iters=num_steps,
+            wall_time=wall_time,
+            name=name,
+            extras={
+                'examples_per_sec': BATCH_SIZE / wall_time
+            })
 
 
 if __name__ == "__main__":
