@@ -7,151 +7,147 @@ import tensorflow as tf
 
 from tensorflow.python.estimator import model_fn
 from tensorflow.train import get_global_step
+from safeai.utils import gradual_sequence
 from safeai.utils.distribution import kl_divergence_with_uniform
 
 
-def _gradual_sequence(start, end, multiplier=3):
-    """Custom nodes number generator
-    The function gives the list of exponentially increase/decrease
-    integers from both 'start' and 'end' params, which can be later used as
-    the number of nodes in each layer.
-    _gradual_sequence(10, 7000, multiplier=5) gives [50, 250, 1250, 6250],
-    _gradual_sequence(6000, 10, multiplier=5) gives [1250, 250, 50]
-    as a return sequence.
+def _default_classifier(input_tensor, classes):
+    """Create default classifier.
         Args:
-            start: lower limit(exclusive)
-            end: upper limit
+            input_tensor: (N, W, H, C) or (N, C, W, H) tf.float32 tensor
+            classes: number of classes
         Returns:
-            num_nodes_list: list of integers
-            or:
-            reversed(num_nodes_list)
+            model: tf.keras.Model instance
     """
-    mode = 'incremental'
-    if end < start:
-        mode = 'decremental'
-        start, end = end, start
-    num_nodes_list = [start*(multiplier**x) for x in range(10)
-                      if start*(multiplier**x) < end]
-    if mode == 'incremental':
-        return num_nodes_list
-    else:
-        return reversed(num_nodes_list)
+    image_shape = input_tensor.shape[1:] # (N, 32, 32, 3) => (32, 32, 3)
+    image_dim_flatten = np.prod(image_shape) # (32, 32, 3) => 3072
+    # gradual_sequence() returns a list of integers that gradually
+    # decreases/increases. For example, gradual_sequence(784, 10, multiplier=3)
+    # returns a list [270, 90, 30]
+    units_in_layers = gradual_sequence(image_dim_flatten, classes)
+
+    # Define default model
+    inputs = tf.keras.layers.Input(shape=image_shape, name='input')
+    net = tf.keras.layers.Dense(image_dim_flatten, activation='relu')(inputs)
+    for hidden_units in units_in_layers:
+        net = tf.keras.layers.Dense(hidden_units,
+                                    activation='relu')(net)
+    logits = tf.keras.layers.Dense(classes, activation=None)(net)
+
+    model = tf.keras.Model(inputs=inputs, outputs=logits)
+    return model
 
 
-def _default_classifier(input_feature_column, num_classes, reuse=True):
-    # Todo: Capture custom layer units ([500, 200, 10])
-    # at params['classifier_units']
-    """Default classifier network.
-        Args:
-            input_feature_column: (None, latent_space_size), tf.float32 tensor
-            num_classes: tf.int32 tensor-like object
-            reuse: variable reuse for scoping
-        Returns:
-            net: the generator output node
-    """
-    image_dim = int(np.prod(input_feature_column.shape[1:]))
-    units_in_layers = _gradual_sequence(image_dim, num_classes)
-    with tf.variable_scope("classifier", reuse=reuse):
-        net = input_feature_column
-        for hidden_units in units_in_layers:
-            net = tf.layers.dense(net,
-                                  units=hidden_units,
-                                  activation=tf.nn.relu)
-        logits = tf.layers.dense(net, units=num_classes, activation=None)
-        return logits
-
-
-def _default_generator(noise_input, image_dim, reuse=True):
+def _default_generator(input_tensor, image_shape):
     """Default generator network.
         Args:
-            noise_input: (None, latent_space_size), tf.float32 tensor
-            output_dim
-            reuse: variable reuse for scoping
+            noise_input: (N, latent_space_size), tf.float32 tensor
+            image_shape: shape of generated fake image, tf.float32 tensor
         Returns:
-            net: the generator output node
+            model: tf.keras.Model instance
     """
-    if type(image_dim) is list or type(image_dim) is tuple:
-        image_dim = np.prod(image_dim)
-    noise_dim = noise_input.shape[1]
-    units_in_layers = _gradual_sequence(noise_dim, image_dim)
-    with tf.variable_scope("generator", reuse=reuse):
-        for hidden_units in units_in_layers:
-            net = tf.layers.dense(noise_input,
-                                  units=hidden_units,
-                                  activation=tf.nn.relu)
-        net = tf.layers.dense(net, units=image_dim, activation=None)
-        return net
+    assert isinstance((image_shape), tuple)
+    assert len(input_tensor.shape) == 2  # (N, latent_space_size)
+    image_dim_flatten = np.prod(image_shape)
+    noise_dim = input_tensor.shape[1]
+    units_in_layers = gradual_sequence(noise_dim, image_dim_flatten)
+
+    inputs = tf.keras.layers.Input(shape=(noise_dim,))
+    net = tf.keras.layers.Dense(noise_dim, activation='relu')(inputs)
+    for hidden_units in units_in_layers:
+        net = tf.keras.layers.Dense(hidden_units, activation='relu')(net)
+    image_flatten = tf.keras.layers.Dense(image_dim_flatten,
+                                          activation=None)(net)
+    model = tf.keras.Model(inputs=inputs, outputs=image_flatten)
+    return model
 
 
-def _default_discriminator(input_feature_column, reuse=True):
+def _default_discriminator(input_tensor):
     """Default discriminator network.
         Args:
-            input_feature_column: (None, input_image_dim), tf.float32 tensor
-            reuse: variable reuse for scoping
+            input_tensor: (None, input_image_dim), tf.float32 tensor
         Returns:
-            net: the generator output node
+            model: tf.keras.Model instance
     """
-    image_dim = np.prod(input_feature_column.shape[1:])
-    units_in_layers = _gradual_sequence(image_dim, 1)
-    with tf.variable_scope('discriminator', reuse=reuse):
-        net = input_feature_column
-        for hidden_units in units_in_layers:
-            net = tf.layers.dense(net,
-                                  units=hidden_units,
-                                  activation=tf.nn.relu)
-        score = tf.layers.dense(net, units=1, activation=None)
-        return score
+    image_shape = input_tensor.shape[1:]
+    image_dim_flatten = np.prod(image_shape)
+    units_in_layers = gradual_sequence(image_dim_flatten, 1)
+    inputs = tf.keras.layers.Input(shape=(image_shape))
+    net = tf.keras.layers.Dense(image_dim_flatten, activation='relu')(inputs)
+    for hidden_units in units_in_layers:
+        net = tf.keras.layers.Dense(hidden_units, activation='relu')(net)
+    logit = tf.keras.layers.Dense(1, activation=None)(net)
+    model = tf.keras.Model(inputs=inputs, outputs=logit)
+    return model
 
 
 def _default_submodel_fn(submodel_id):
-    submodel_builders = {
+    submodels = {
         'classifier': _default_classifier,
         'generator': _default_generator,
         'discriminator': _default_discriminator
     }
-    return submodel_builders[submodel_id]
+    submodel_fn = submodels[submodel_id]
+    return submodel_fn  # Returns one of functions above
 
 
 """
 Expected params: {
     'image': [image_feature],
     'noise': [noise_feature],
-    'image_dim': image_dim,
-    'noise_dim': noise_dim,
-    'num_classes': num_classes,
-    'discriminator': None,
-    'generator': None,
-    'classifier': None,
+    'classes': num_classes
+    'discriminator': None,  <- instantiated keras model, or chain of callable layers
+    'generator': None,      <- instantiated keras model, or chain of callable layers
+    'classifier': None,     <- instantiated keras model, or chain of callable layers
     'learning_rate': 0.001,
     'beta': 0.0,
 }
 """
-
-
 def confident_classifier(features, labels, mode, params):
+
+    image_feature = params['image']
+    noise_feature = params['noise']
+    print("image_feature: {}".format(image_feature))
+    print("noise_feature: {}".format(noise_feature))
+
+    image_shape = (28, 28)# Why image_feature.shape not working?
+
+    image_input_layer = tf.feature_column.input_layer(features,
+                                                      image_feature)
+    noise_input_layer = tf.feature_column.input_layer(features,
+                                                      noise_feature)
+
+    default_model_args = {
+        'classifier': [image_input_layer, params['classes']],
+        'generator': [noise_input_layer, image_shape],
+        'discriminator': [image_input_layer]
+    }
+
+    submodels = {}
+    for submodel_id in ['classifier', 'generator', 'discriminator']:
+        if not params[submodel_id] or submodel_id not in params:
+            tf.logging.info("Fetching default {}".format(submodel_id))
+            args = default_model_args[submodel_id]
+            submodel_fn = _default_submodel_fn(submodel_id)
+            submodels[submodel_id] = submodel_fn(*args)
+        else:
+            if not callable(params[submodel_id]):
+                raise ValueError("Model should be callable.")
+            submodels[submodel_id] = params[submodel_id]
+
 
     if mode not in [model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
                     model_fn.ModeKeys.PREDICT]:
         raise ValueError('Mode not recognized: {}'.format(mode))
 
-    submodels = {}
-    for submodel_id in ['discriminator', 'generator', 'classifier']:
-        if not params[submodel_id] or submodel_id not in params:
-            print('default model fetching: {} model'.format(submodel_id))
-            submodels[submodel_id] = _default_submodel_fn(submodel_id)
-        else:
-            submodels[submodel_id] = params[submodel_id]
-
     # Todo: sanity check on each submodel Mon Nov  5 14:16:29 2018
     # Combine three independent submodels
-    classifier_fn = submodels['classifier']
-    discriminator_fn = submodels['discriminator']
-    generator_fn = submodels['generator']
+    classifier = submodels['classifier']
+    discriminator = submodels['discriminator']
+    generator = submodels['generator']
 
-    image_input_layer = tf.feature_column.input_layer(features,
-                                                      params['image'])
-    logits = classifier_fn(image_input_layer, params['num_classes'],
-                           reuse=False)
+    with tf.variable_scope("classifier", reuse=False):
+        logits = classifier(image_input_layer)
     predicted_classes = tf.argmax(logits, axis=1)
     confident_score = tf.nn.softmax(logits)
 
@@ -164,19 +160,23 @@ def confident_classifier(features, labels, mode, params):
         }
         return tf.estimator.EstimatorSpec(mode, predictions=predictions)
 
-    labels = tf.cast(labels, tf.int32)
-    noise = tf.feature_column.input_layer(features, params['noise'])
+    labels = tf.cast(labels, tf.int32)  # Do we really need to do this? in here?
+
 
     # Todo: Take loss from params Mon Nov  5 20:14:35 2018
-    # Todo: reuse reversed bool Tue 06 Nov 2018 05:08:16 PM KST
     # Discriminator loss
-    # Real image
-    d_score_real = discriminator_fn(image_input_layer, reuse=False)
 
-    # Fake image
-    generated_fake_image = generator_fn(noise, params['image_dim'],
-                                        reuse=False)
-    d_score_fake = discriminator_fn(generated_fake_image)
+    # Put real image to discriminator
+    with tf.variable_scope("discriminator", reuse=False):
+        d_score_real = discriminator(image_input_layer)
+
+    # Put fake image to discriminator
+    with tf.variable_scope("generator", reuse=False):
+        generated_fake_image = generator(noise_input_layer)
+
+    with tf.variable_scope("discriminator", reuse=True):
+        d_score_fake = discriminator(generated_fake_image)
+
 
     d_loss_real = tf.reduce_mean(
         tf.nn.sigmoid_cross_entropy_with_logits(
@@ -193,13 +193,16 @@ def confident_classifier(features, labels, mode, params):
     # Discriminator loss
     discriminator_loss = d_loss_real + d_loss_fake
 
+
     g_loss_from_d = tf.reduce_mean(
         tf.nn.sigmoid_cross_entropy_with_logits(
             logits=d_score_fake,
             labels=tf.ones_like(d_score_fake))
     )
 
-    logits_fake = classifier_fn(generated_fake_image, params['num_classes'])
+    with tf.variable_scope("classifier", reuse=True):
+        logits_fake = classifier(generated_fake_image)
+
     confident_score_fake = tf.nn.softmax(logits_fake)
     classifier_uniform_kld_fake =\
         kl_divergence_with_uniform(confident_score_fake)
@@ -218,6 +221,9 @@ def confident_classifier(features, labels, mode, params):
     classifier_variables = tf.trainable_variables(scope="classifier")
     discriminator_variables = tf.trainable_variables(scope="discriminator")
     generator_variables = tf.trainable_variables(scope="generator")
+    print("classifier_variables: {}".format(classifier_variables))
+    print("discriminator_variables: {}".format(discriminator_variables))
+    print("generator_variables: {}".format(generator_variables))
 
     # Define three training operations
     lr = params['learning_rate']
