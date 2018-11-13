@@ -1,10 +1,10 @@
-# Python CircleCI 2.0 configuration file
-#
-# Check https://circleci.com/docs/2.0/language-python/ for more details
-#
 version: 2
 jobs:
   test-py3-tfcpu:
+
+    environment:
+      CC_TEST_REPORTER_ID: 5f354be6cc02796887efbc5b6b871f90656bda952247f59b3022964f6e35dfb4
+
     docker:
       - image: circleci/python:3.6.1
 
@@ -20,6 +20,12 @@ jobs:
           - v1-dependencies-py3-
 
       - run:
+          name: Setup Code Climate test-reporter
+          command: |
+            curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+            chmod +x ./cc-test-reporter
+
+      - run:
           name: install dependencies
           command: |
             pip install --quiet --user -r test-requirements.txt
@@ -33,8 +39,15 @@ jobs:
           name: run tests
           command: |
             python -m unittest discover
+            ./cc-test-reporter before-build
+            py.test safeai/tests --cov-report=xml:coverage.xml --cov=safeai
+            ./cc-test-reporter after-build -t coverage.py coverage.xml
 
   test-py2-tfcpu:
+
+    environment:
+      CC_TEST_REPORTER_ID: 5f354be6cc02796887efbc5b6b871f90656bda952247f59b3022964f6e35dfb4
+
     docker:
       - image: circleci/python:2.7.14
 
@@ -50,6 +63,12 @@ jobs:
           - v1-dependencies-py2-
 
       - run:
+          name: Setup Code Climate test-reporter
+          command: |
+            curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+            chmod +x ./cc-test-reporter
+
+      - run:
           name: install dependencies
           command: |
             pip install --quiet --user -r test-requirements.txt
@@ -63,6 +82,9 @@ jobs:
           name: run tests
           command: |
             python -m unittest discover
+            ./cc-test-reporter before-build
+            py.test safeai/tests --cov-report=xml:coverage.xml --cov=safeai
+            ./cc-test-reporter after-build -t coverage.py coverage.xml
 
 workflows:
   version: 2
