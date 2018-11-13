@@ -1,10 +1,12 @@
 # SafeAI: Predictive Uncertainty DL Models
 [![EpiSci](https://img.shields.io/badge/Episys-Science-5fa9d3.svg)](http://www.episci.com/)
-![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)
-[![CircleCI](https://circleci.com/gh/EpiSci/SafeAI.svg?style=svg)](https://circleci.com/gh/EpiSci/SafeAI)  
-[![python](https://img.shields.io/badge/python-3.6_|2.7-blue.svg)](https://www.tensorflow.org/)
+[![CircleCI](https://circleci.com/gh/EpiSci/SafeAI.svg?style=svg)](https://circleci.com/gh/EpiSci/SafeAI)
+[![Maintainability](https://api.codeclimate.com/v1/badges/2d74bd6e1afde4373ddb/maintainability)](https://codeclimate.com/github/EpiSci/SafeAI/maintainability)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/2d74bd6e1afde4373ddb/test_coverage)](https://codeclimate.com/github/EpiSci/SafeAI/test_coverage)  
+[![python](https://img.shields.io/badge/python-3.6_|2.7-blue.svg)](https://www.python.org/)
 [![tensorflow](https://img.shields.io/badge/tensorflow-1.10-ed6c20.svg)](https://www.tensorflow.org/)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/safeai.svg)](https://pypi.python.org/pypi/safeai/)
+![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)
 
 <img src=./assets/SafeguardAI-logo.png width="490px" height="210px">  
 
@@ -63,12 +65,12 @@ python -m examples.[script name without '.py'] # e.g.) python -m examples.joint_
 python -m unittest discover
 ```
 ## List of predictive uncertainty models available:
-- **Joint confident model** (models/joint_confident.py):  
-Training Confidence-Calibrated Classifier for Detecting Out-of-distribution Samples  
+- **Joint Confident Classifier** [(safeai/models/joint_confident.py)](https://github.com/EpiSci/SafeAI/blob/master/safeai/models/joint_confident/joint_confident.py)  
+: *Training Confidence-Calibrated Classifier for Detecting Out-of-distribution Samples(2017)*  
 Kimin Lee et al | [arxiv.org/abs](https://arxiv.org/abs/1711.09325) | [Author's repository](https://github.com/alinlab/Confident_classifier)  
 
 - List other models in the same form as above
 
 ## Contribute to project:
 We appreciate your interest in this project!  
-Before making an issue, please consider reading our [short contribution guideline.](https://github.com/EpiSci/SafeAI/blob/master/CONTRIBUTING.md)
+Before making an issue, please consider reading [Our contribution guideline.](https://github.com/EpiSci/SafeAI/blob/master/CONTRIBUTING.md)
