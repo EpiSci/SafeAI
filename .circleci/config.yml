@@ -4,6 +4,7 @@ jobs:
 
     environment:
       CC_TEST_REPORTER_ID: 5f354be6cc02796887efbc5b6b871f90656bda952247f59b3022964f6e35dfb4
+      BASH_ENV: ~/.bashrc
 
     docker:
       - image: circleci/python:3.6.1
@@ -12,12 +13,18 @@ jobs:
 
     steps:
       - checkout
-
+      
       # Download and cache dependencies
       - restore_cache:
           keys:
-          - v2-dependencies-py3-{{ checksum "test-requirements.txt" }}-{{ checksum "requirements.txt" }}
-          - v2-dependencies-py3-
+            - v3-dependencies-py3-{{ checksum "test-requirements.txt" }}-{{ checksum "requirements.txt" }}
+            - v3-dependencies-py3-
+
+      - run: 
+          name: make local tools executable
+          command: |
+            echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
+            source /home/circleci/.bashrc
 
       - run:
           name: Setup Code Climate test-reporter
@@ -34,7 +41,7 @@ jobs:
       - save_cache:
           paths:
             - ./venv
-          key: v2-dependencies-py3-{{ checksum "requirements.txt" }}-{{ checksum "requirements.txt" }}
+          key: v3-dependencies-py3-{{ checksum "requirements.txt" }}-{{ checksum "requirements.txt" }}
 
       - run:
           name: run tests
@@ -60,8 +67,14 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-          - v2-dependencies-py2-{{ checksum "test-requirements.txt" }}-{{ checksum "requirements.txt" }}
-          - v2-dependencies-py2-
+            - v3-dependencies-py2-{{ checksum "test-requirements.txt" }}-{{ checksum "requirements.txt" }}
+            - v3-dependencies-py2-
+
+      - run: 
+          name: make local tools executable
+          command: |
+            echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
+            source /home/circleci/.bashrc
 
       - run:
           name: Setup Code Climate test-reporter
@@ -77,7 +90,7 @@ jobs:
       - save_cache:
           paths:
             - ./venv
-          key: v2-dependencies-py2-{{ checksum "requirements.txt" }}-{{ checksum "requirements.txt" }}
+          key: v3-dependencies-py2-{{ checksum "requirements.txt" }}-{{ checksum "requirements.txt" }}
 
       - run:
           name: run tests
