@@ -2,6 +2,9 @@ version: 2
 jobs:
   test-py3-tfcpu:
 
+    environment:
+      - CC_TEST_REPORTER_ID: 97d605718cc9bbe630ee773a4e8b49df32e87616185740c315b7118d59996502
+
     docker:
       - image: circleci/python:3.6.1
 
@@ -48,6 +51,9 @@ jobs:
             ./cc-test-reporter after-build -t coverage.py coverage.xml
 
   test-py2-tfcpu:
+
+    environment:
+      - CC_TEST_REPORTER_ID: 97d605718cc9bbe630ee773a4e8b49df32e87616185740c315b7118d59996502
 
     docker:
       - image: circleci/python:2.7.14
