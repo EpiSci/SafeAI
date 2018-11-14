@@ -5,6 +5,9 @@ tf.logging.set_verbosity(tf.logging.DEBUG)
 cifar10 = tf.keras.datasets.cifar10
 mnist = tf.keras.datasets.mnist
 
+# Todo(Critical): Fix memory issue Wed 14 Nov 2018 12:32:29 PM KST
+# (x_train, y_train), (x_test, y_test) = cifar10.load_data() # cifar10 causes memory exploding
+
 
 def dcgan_discriminator():
     """
@@ -29,6 +32,13 @@ def vgg_classifier():
     return vgg
 
 
+def make_generator(images, noises, labels):
+    def gen():
+        for (image, noise), label in zip(zip(images, noises), labels):
+            yield {'image': image, 'noise': noise}, label
+    return gen
+
+
 def train_input_fn(features, labels, noise_size, batch_size):
     """
     docstring
@@ -38,7 +48,7 @@ def train_input_fn(features, labels, noise_size, batch_size):
     dataset = tf.data.Dataset.from_tensor_slices(
         ({'image': features, 'noise': noise}, labels)
     )
-    dataset = dataset.cache().shuffle(50000).repeat().batch(batch_size)
+    dataset = dataset.shuffle(1000).cache().repeat().batch(batch_size)
     return dataset
 
 
@@ -63,13 +73,12 @@ def main():
     docstring
     """
     batch_size = 256
-    train_steps = 1000
+    train_steps = 30000
     noise_dim = 100
     num_classes = 10
-    # Todo(Critical): Fix memory issue Wed 14 Nov 2018 12:32:29 PM KST
-    # (x_train, y_train), (x_test, y_test) = cifar10.load_data() # cifar10 causes memory exploding
+
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
-    x_train, x_test = x_train/255., x_test/255.
+
     # Todo: NWHC or NCWH? Tue 06 Nov 2018 09:36:29 PM KST
     image_width, image_height = x_train.shape[1:3]
 
@@ -81,6 +90,7 @@ def main():
     # Todo: Reduce params['dim'] Tue 06 Nov 2018 05:05:10 PM KST
     joint_confident_classifier = tf.estimator.Estimator(
         model_fn=confident_classifier,
+        model_dir='/tmp/joint_confident',
         params={
             'image': image_feature,
             'noise': noise_feature,

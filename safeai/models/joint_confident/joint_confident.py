@@ -98,7 +98,7 @@ Expected params: {
     'discriminator': None,  <-
     'generator': None,      <- instantiated keras model, or chain of callable layers
     'classifier': None,     <-
-    'learning_rate': 0.001,
+    'learning_rate': 0.01,
     'beta': 1.0,
 }
 """
@@ -136,7 +136,6 @@ def confident_classifier(features, labels, mode, params):
         raise ValueError('Mode not recognized: {}'.format(mode))
 
     # Combine three independent submodels
-    # Todo: callable, shape check on each submodel Mon Nov  5 14:16:29 2018
     classifier = submodels['classifier']
     discriminator = submodels['discriminator']
     generator = submodels['generator']
@@ -167,6 +166,9 @@ def confident_classifier(features, labels, mode, params):
 
     d_score_fake = discriminator(generated_fake_image)
 
+    tf.summary.image('real', tf.reshape(image_input_layer[:10], [-1, 28, 28, 1]))
+    tf.summary.image('fake', tf.reshape(generated_fake_image[:10], [-1, 28, 28, 1]))
+
 
     d_loss_real = tf.reduce_mean(
         tf.nn.sigmoid_cross_entropy_with_logits(
@@ -194,7 +196,7 @@ def confident_classifier(features, labels, mode, params):
 
     confident_score_fake = tf.nn.softmax(logits_fake)
     classifier_uniform_kld_fake =\
-        kl_divergence_with_uniform(confident_score_fake)
+        tf.reduce_mean(kl_divergence_with_uniform(confident_score_fake))
 
     # Generator loss
     generator_loss = g_loss_from_d +\
@@ -234,6 +236,12 @@ def confident_classifier(features, labels, mode, params):
                             train_generator_op,
                             train_classifier_op])
 
+    tf.summary.scalar('classifier_loss', classifier_loss)
+    tf.summary.scalar('generator_loss', generator_loss)
+    tf.summary.scalar('discriminator_loss', discriminator_loss)
+
+    grouped_loss = classifier_loss + generator_loss + discriminator_loss
+
     # Define accuracy, metrics
     accuracy = tf.metrics.accuracy(labels=labels,
                                    predictions=predicted_classes)
@@ -243,14 +251,13 @@ def confident_classifier(features, labels, mode, params):
     # Eval
     if mode == tf.estimator.ModeKeys.EVAL:
         return tf.estimator.EstimatorSpec(
-            mode, loss=nll_loss, eval_metric_ops=metrics)
+            mode, loss=grouped_loss, eval_metric_ops=metrics)
 
     # Train: Alternative learning
     if mode == tf.estimator.ModeKeys.TRAIN:
         est_spec = tf.estimator.EstimatorSpec(mode,
-                                              loss=nll_loss,
+                                              loss=grouped_loss,
                                               train_op=grouped_ops)
-        tf.summary.scalar('accuracy', accuracy[1])
         return est_spec
 
     raise ValueError("Invalid estimator mode: reached the end of the function")

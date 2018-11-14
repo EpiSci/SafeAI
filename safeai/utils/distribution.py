@@ -7,5 +7,4 @@ def kl_divergence_with_uniform(target_distribution):
     uniform_distribution = tf.divide(tf.ones_like(target_distribution), num_classes)
     x = tf.distributions.Categorical(probs=target_distribution)
     y = tf.distributions.Categorical(probs=uniform_distribution)
-    return tf.distributions.kl_divergence(x, y) * num_classes  # scaling factor
-
+    return tf.distributions.kl_divergence(x, y, allow_nan_stats=False) * num_classes  # scaling factor
