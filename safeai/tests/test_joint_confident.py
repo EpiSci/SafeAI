@@ -21,7 +21,7 @@ MNIST_NUM_CLASSES = 10
 TRAIN_STEPS = 1
 
 
-def dummy_input_fn():
+def dummy_mnist_input_fn():
     image = tf.random_uniform([SAMPLE_SIZE, 784])
     noise = tf.random_uniform([SAMPLE_SIZE, 100])
     labels = tf.random_uniform([SAMPLE_SIZE, 1], maxval=9, dtype=tf.int32)
@@ -30,7 +30,7 @@ def dummy_input_fn():
     return dataset.repeat().batch(BATCH_SIZE)
 
 
-def make_confident_classifier_estimator():
+def make_mnist_confident_classifier_estimator():
     image_feature = tf.feature_column.numeric_column('image',
                                                      shape=MNIST_IMAGE_DIM)
     noise_feature = tf.feature_column.numeric_column('noise',
@@ -40,9 +40,7 @@ def make_confident_classifier_estimator():
         params={
             'image': [image_feature],
             'noise': [noise_feature],
-            'image_dim': MNIST_IMAGE_DIM,  # Todo: Surplus param
-            'noise_dim': NOISE_DIM,  # Todo: Surplus param
-            'num_classes': MNIST_NUM_CLASSES,
+            'classes': MNIST_NUM_CLASSES,
             'discriminator': None,
             'generator': None,
             'classifier': None,
@@ -53,14 +51,14 @@ def make_confident_classifier_estimator():
 
 class JointConfidentModelTest(tf.test.TestCase):
 
-    def temp_input_fn(self):
+    def dummy_mnist_input_fn(self):
         return {'image': tf.random_uniform([3, 28, 28]),
                 'noise': tf.random_uniform([3, 100])}
 
     def test_confident_classifier(self):
-        classifier = make_confident_classifier_estimator()
-        classifier.train(input_fn=dummy_input_fn, steps=8)
-        eval_results = classifier.evaluate(input_fn=dummy_input_fn, steps=1)
+        classifier = make_mnist_confident_classifier_estimator()
+        classifier.train(input_fn=dummy_mnist_input_fn, steps=8)
+        eval_results = classifier.evaluate(input_fn=dummy_mnist_input_fn, steps=1)
 
         # Couldn't find the references of these two:
         nll_loss = eval_results['loss']
@@ -73,7 +71,7 @@ class JointConfidentModelTest(tf.test.TestCase):
         self.assertEqual(12, global_step)
         self.assertEqual(accuracy.shape, ())
 
-        predictions_generator = classifier.predict(self.temp_input_fn)
+        predictions_generator = classifier.predict(self.dummy_mnist_input_fn)
         for _ in range(3):
             predictions = next(predictions_generator)
             self.assertEqual(predictions['probabilities'].shape, (10, ))
@@ -93,9 +91,7 @@ class JointConfidentModelTest(tf.test.TestCase):
         params = {
             'image': [image_feature],
             'noise': [noise_feature],
-            'image_dim': MNIST_IMAGE_DIM,  # Todo: Surplus param
-            'noise_dim': NOISE_DIM,  # Todo: Surplus param
-            'num_classes': MNIST_NUM_CLASSES,
+            'classes': MNIST_NUM_CLASSES,
             'discriminator': None,
             'generator': None,
             'classifier': None,

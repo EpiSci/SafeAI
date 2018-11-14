@@ -1,7 +1,8 @@
 import numpy as np
 import tensorflow as tf
 from safeai.models.joint_confident import confident_classifier
-tf.logging.set_verbosity(tf.logging.INFO)
+tf.logging.set_verbosity(tf.logging.DEBUG)
+cifar10 = tf.keras.datasets.cifar10
 mnist = tf.keras.datasets.mnist
 
 
@@ -33,10 +34,11 @@ def train_input_fn(features, labels, noise_size, batch_size):
     docstring
     """
     noise = np.random.random((features.shape[0], noise_size))
+    labels = labels.astype(np.int32)
     dataset = tf.data.Dataset.from_tensor_slices(
-            ({'image': features, 'noise': noise}, labels)
+        ({'image': features, 'noise': noise}, labels)
     )
-    dataset = dataset.shuffle(1000).repeat().batch(batch_size)
+    dataset = dataset.cache().shuffle(50000).repeat().batch(batch_size)
     return dataset
 
 
@@ -45,6 +47,7 @@ def eval_input_fn(features, labels, noise_size, batch_size):
     Used in both evaluation, prediction
     """
     noise = np.random.random((features.shape[0], noise_size))
+    labels = labels.astype(np.int32)
     features_dict = {'image': features, 'noise': noise}
     if labels is None:
         inputs = features_dict
@@ -60,12 +63,14 @@ def main():
     docstring
     """
     batch_size = 256
-    train_steps = 10000
+    train_steps = 1000
     noise_dim = 100
     num_classes = 10
+    # Todo(Critical): Fix memory issue Wed 14 Nov 2018 12:32:29 PM KST
+    # (x_train, y_train), (x_test, y_test) = cifar10.load_data() # cifar10 causes memory exploding
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train, x_test = x_train/255., x_test/255.
-    # Todo: one-hot Tue 06 Nov 2018 09:36:29 PM KST
+    # Todo: NWHC or NCWH? Tue 06 Nov 2018 09:36:29 PM KST
     image_width, image_height = x_train.shape[1:3]
 
     image_feature = tf.feature_column.numeric_column(
@@ -77,8 +82,8 @@ def main():
     joint_confident_classifier = tf.estimator.Estimator(
         model_fn=confident_classifier,
         params={
-            'image': [image_feature],
-            'noise': [noise_feature],
+            'image': image_feature,
+            'noise': noise_feature,
             'classes': num_classes,
             'discriminator': None,
             'generator': None,
@@ -99,8 +104,7 @@ def main():
         input_fn=lambda: eval_input_fn(x_test, y_test, noise_dim, batch_size),
         steps=train_steps)
 
-    print('\nTest set accuracy: {accuracy:0.3f}\n'.format(**eval_result))
-
+    tf.logging.info('Test set accuracy: {accuracy:0.3f}'.format(**eval_result))
 
 if __name__ == "__main__":
     main()
