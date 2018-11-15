@@ -21,156 +21,65 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
 import tensorflow as tf
 
 from tensorflow.python.estimator import model_fn
 from tensorflow.train import get_global_step
+
 from safeai.utils.distribution import kl_divergence_with_uniform
-
-
-def _gradual_sequence(start, end, multiplier=3):
-    """Custom nodes number generator
-    The function gives the list of exponentially increase/decrease
-    integers from both 'start' and 'end' params, which can be later used as
-    the number of nodes in each layer.
-    _gradual_sequence(10, 7000, multiplier=5) gives [50, 250, 1250, 6250],
-    _gradual_sequence(6000, 10, multiplier=5) gives [1250, 250, 50]
-    as a return sequence.
-        Args:
-            start: lower limit(exclusive)
-            end: upper limit
-        Returns:
-            num_nodes_list: list of integers
-            or:
-            reversed(num_nodes_list)
-    """
-    mode = 'incremental'
-    if end < start:
-        mode = 'decremental'
-        start, end = end, start
-    num_nodes_list = [start*(multiplier**x) for x in range(10)
-                      if start*(multiplier**x) < end]
-    if mode == 'incremental':
-        return num_nodes_list
-    else:
-        return reversed(num_nodes_list)
-
-
-def _default_classifier(input_feature_column, num_classes, reuse=True):
-    # Todo: Capture custom layer units ([500, 200, 10])
-    # at params['classifier_units']
-    """Default classifier network.
-        Args:
-            input_feature_column: (None, latent_space_size), tf.float32 tensor
-            num_classes: tf.int32 tensor-like object
-            reuse: variable reuse for scoping
-        Returns:
-            net: the generator output node
-    """
-    image_dim = int(np.prod(input_feature_column.shape[1:]))
-    units_in_layers = _gradual_sequence(image_dim, num_classes)
-    with tf.variable_scope("classifier", reuse=reuse):
-        net = input_feature_column
-        for hidden_units in units_in_layers:
-            net = tf.layers.dense(net,
-                                  units=hidden_units,
-                                  activation=tf.nn.relu)
-        logits = tf.layers.dense(net, units=num_classes, activation=None)
-        return logits
-
-
-def _default_generator(noise_input, image_dim, reuse=True):
-    """Default generator network.
-        Args:
-            noise_input: (None, latent_space_size), tf.float32 tensor
-            output_dim
-            reuse: variable reuse for scoping
-        Returns:
-            net: the generator output node
-    """
-    if type(image_dim) is list or type(image_dim) is tuple:
-        image_dim = np.prod(image_dim)
-    noise_dim = noise_input.shape[1]
-    units_in_layers = _gradual_sequence(noise_dim, image_dim)
-    with tf.variable_scope("generator", reuse=reuse):
-        for hidden_units in units_in_layers:
-            net = tf.layers.dense(noise_input,
-                                  units=hidden_units,
-                                  activation=tf.nn.relu)
-        net = tf.layers.dense(net, units=image_dim, activation=None)
-        return net
-
-
-def _default_discriminator(input_feature_column, reuse=True):
-    """Default discriminator network.
-        Args:
-            input_feature_column: (None, input_image_dim), tf.float32 tensor
-            reuse: variable reuse for scoping
-        Returns:
-            net: the generator output node
-    """
-    image_dim = np.prod(input_feature_column.shape[1:])
-    units_in_layers = _gradual_sequence(image_dim, 1)
-    with tf.variable_scope('discriminator', reuse=reuse):
-        net = input_feature_column
-        for hidden_units in units_in_layers:
-            net = tf.layers.dense(net,
-                                  units=hidden_units,
-                                  activation=tf.nn.relu)
-        score = tf.layers.dense(net, units=1, activation=None)
-        return score
-
-
-def _default_submodel_fn(submodel_id):
-    submodel_builders = {
-        'classifier': _default_classifier,
-        'generator': _default_generator,
-        'discriminator': _default_discriminator
-    }
-    return submodel_builders[submodel_id]
-
-
-"""
-Expected params: {
-    'image': [image_feature],
-    'noise': [noise_feature],
-    'image_dim': image_dim,
-    'noise_dim': noise_dim,
-    'num_classes': num_classes,
-    'discriminator': None,
-    'generator': None,
-    'classifier': None,
-    'learning_rate': 0.001,
-    'beta': 0.0,
-}
-"""
+from safeai.models.joint_confident.default_submodels import load_default_submodel
 
 
 def confident_classifier(features, labels, mode, params):
+    """ confident_classifier: defines joint_confident model_fn
+        Expected params: {
+            'image': [image_feature],
+            'noise': [noise_feature],
+            'classes': num_classes
+            'discriminator': None,  <-
+            'generator': None,      <- instantiated keras model,
+            'classifier': None,     <- or chain of callable layers
+            'learning_rate': 0.01,
+            'beta': 1.0,
+        }
+    """
+    image_feature = params['image']
+    noise_feature = params['noise']
+
+    image_input_layer = tf.feature_column.input_layer(features,
+                                                      image_feature)
+    noise_input_layer = tf.feature_column.input_layer(features,
+                                                      noise_feature)
+
+    default_model_args = {
+        'classifier': [image_input_layer, params['classes']],
+        'generator': [noise_input_layer, image_input_layer],
+        'discriminator': [image_input_layer]
+    }
+
+    submodels = {}
+    for submodel_id in ['classifier', 'generator', 'discriminator']:
+        if not params[submodel_id] or submodel_id not in params:
+            tf.logging.info("Fetching default {}".format(submodel_id))
+            args = default_model_args[submodel_id]
+            submodel_fn = load_default_submodel(submodel_id)
+            submodels[submodel_id] = submodel_fn(*args)
+        else:
+            if not callable(params[submodel_id]):
+                raise ValueError("Model should be callable.")
+            submodels[submodel_id] = params[submodel_id]
+
 
     if mode not in [model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
                     model_fn.ModeKeys.PREDICT]:
         raise ValueError('Mode not recognized: {}'.format(mode))
 
-    submodels = {}
-    for submodel_id in ['discriminator', 'generator', 'classifier']:
-        if not params[submodel_id] or submodel_id not in params:
-            print('default model fetching: {} model'.format(submodel_id))
-            submodels[submodel_id] = _default_submodel_fn(submodel_id)
-        else:
-            submodels[submodel_id] = params[submodel_id]
-
-    # Todo: sanity check on each submodel Mon Nov  5 14:16:29 2018
     # Combine three independent submodels
-    classifier_fn = submodels['classifier']
-    discriminator_fn = submodels['discriminator']
-    generator_fn = submodels['generator']
+    classifier = submodels['classifier']
+    discriminator = submodels['discriminator']
+    generator = submodels['generator']
 
-    image_input_layer = tf.feature_column.input_layer(features,
-                                                      params['image'])
-    logits = classifier_fn(image_input_layer, params['num_classes'],
-                           reuse=False)
+    logits = classifier(image_input_layer)
     predicted_classes = tf.argmax(logits, axis=1)
     confident_score = tf.nn.softmax(logits)
 
@@ -183,19 +92,20 @@ def confident_classifier(features, labels, mode, params):
         }
         return tf.estimator.EstimatorSpec(mode, predictions=predictions)
 
-    labels = tf.cast(labels, tf.int32)
-    noise = tf.feature_column.input_layer(features, params['noise'])
-
     # Todo: Take loss from params Mon Nov  5 20:14:35 2018
-    # Todo: reuse reversed bool Tue 06 Nov 2018 05:08:16 PM KST
     # Discriminator loss
-    # Real image
-    d_score_real = discriminator_fn(image_input_layer, reuse=False)
 
-    # Fake image
-    generated_fake_image = generator_fn(noise, params['image_dim'],
-                                        reuse=False)
-    d_score_fake = discriminator_fn(generated_fake_image)
+    # Put real image to discriminator
+    d_score_real = discriminator(image_input_layer)
+
+    # Put fake image to discriminator
+    generated_fake_image = generator(noise_input_layer)
+
+    d_score_fake = discriminator(generated_fake_image)
+
+    # Delete these soon
+    #tf.summary.image('real', tf.reshape(image_input_layer[:10], [-1, 32, 32, 3]))
+    #tf.summary.image('fake', tf.reshape(generated_fake_image[:10], [-1, 32, 32, 3]))
 
     d_loss_real = tf.reduce_mean(
         tf.nn.sigmoid_cross_entropy_with_logits(
@@ -212,16 +122,18 @@ def confident_classifier(features, labels, mode, params):
     # Discriminator loss
     discriminator_loss = d_loss_real + d_loss_fake
 
+
     g_loss_from_d = tf.reduce_mean(
         tf.nn.sigmoid_cross_entropy_with_logits(
             logits=d_score_fake,
             labels=tf.ones_like(d_score_fake))
     )
 
-    logits_fake = classifier_fn(generated_fake_image, params['num_classes'])
+    logits_fake = classifier(generated_fake_image)
+
     confident_score_fake = tf.nn.softmax(logits_fake)
     classifier_uniform_kld_fake =\
-        kl_divergence_with_uniform(confident_score_fake)
+        tf.reduce_mean(kl_divergence_with_uniform(confident_score_fake))
 
     # Generator loss
     generator_loss = g_loss_from_d +\
@@ -233,10 +145,9 @@ def confident_classifier(features, labels, mode, params):
     classifier_loss = nll_loss + (params['beta'] * classifier_uniform_kld_fake)
 
     # Separate variables to applying gradient only to subgraph
-    # valid
-    classifier_variables = tf.trainable_variables(scope="classifier")
-    discriminator_variables = tf.trainable_variables(scope="discriminator")
-    generator_variables = tf.trainable_variables(scope="generator")
+    classifier_variables = classifier.trainable_variables
+    discriminator_variables = discriminator.trainable_variables
+    generator_variables = generator.trainable_variables
 
     # Define three training operations
     lr = params['learning_rate']
@@ -262,6 +173,12 @@ def confident_classifier(features, labels, mode, params):
                             train_generator_op,
                             train_classifier_op])
 
+    tf.summary.scalar('classifier_loss', classifier_loss)
+    tf.summary.scalar('generator_loss', generator_loss)
+    tf.summary.scalar('discriminator_loss', discriminator_loss)
+
+    grouped_loss = classifier_loss + generator_loss + discriminator_loss
+
     # Define accuracy, metrics
     accuracy = tf.metrics.accuracy(labels=labels,
                                    predictions=predicted_classes)
@@ -271,14 +188,13 @@ def confident_classifier(features, labels, mode, params):
     # Eval
     if mode == tf.estimator.ModeKeys.EVAL:
         return tf.estimator.EstimatorSpec(
-            mode, loss=nll_loss, eval_metric_ops=metrics)
+            mode, loss=grouped_loss, eval_metric_ops=metrics)
 
     # Train: Alternative learning
     if mode == tf.estimator.ModeKeys.TRAIN:
         est_spec = tf.estimator.EstimatorSpec(mode,
-                                              loss=nll_loss,
+                                              loss=grouped_loss,
                                               train_op=grouped_ops)
-        tf.summary.scalar('accuracy', accuracy[1])
         return est_spec
 
     raise ValueError("Invalid estimator mode: reached the end of the function")
