@@ -73,8 +73,6 @@ def confident_classifier(features, labels, mode, params):
         }
         return tf.estimator.EstimatorSpec(mode, predictions=predictions)
 
-
-
     # Todo: Take loss from params Mon Nov  5 20:14:35 2018
     # Discriminator loss
 
@@ -86,8 +84,9 @@ def confident_classifier(features, labels, mode, params):
 
     d_score_fake = discriminator(generated_fake_image)
 
-    tf.summary.image('real', tf.reshape(image_input_layer[:10], [-1, 28, 28, 1]))
-    tf.summary.image('fake', tf.reshape(generated_fake_image[:10], [-1, 28, 28, 1]))
+    # Delete these soon
+    #tf.summary.image('real', tf.reshape(image_input_layer[:10], [-1, 32, 32, 3]))
+    #tf.summary.image('fake', tf.reshape(generated_fake_image[:10], [-1, 32, 32, 3]))
 
     d_loss_real = tf.reduce_mean(
         tf.nn.sigmoid_cross_entropy_with_logits(

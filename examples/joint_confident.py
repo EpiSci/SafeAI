@@ -4,11 +4,6 @@ from safeai.models.joint_confident import confident_classifier
 
 tf.logging.set_verbosity(tf.logging.DEBUG)
 cifar10 = tf.keras.datasets.cifar10
-mnist = tf.keras.datasets.mnist
-
-# Todo(Critical): Fix memory issue Wed 14 Nov 2018 12:32:29 PM KST
-# (x_train, y_train), (x_test, y_test) = cifar10.load_data() # cifar10 causes memory exploding
-
 
 def dcgan_discriminator():
     """
@@ -29,9 +24,7 @@ def vgg_classifier():
     """
     docstring
     """
-    vgg = vgg16.VGG16(include_top=False, weights=None,
-                      input_shape=(32, 32, 3), classes=10)
-    return vgg
+    return vgg16.VGG16
 
 
 def make_generator(images, noises, labels):
@@ -51,14 +44,13 @@ def train_input_fn(images, labels, noise_size, batch_size):
     labels = labels.astype(np.int32)
 
     gen = make_generator(images, noises, labels)
-    tf.logging.info("i shape: {}, n shape: {}".format(images.shape, noises.shape))
 
-    output_tensor_types = (({'image': tf.float32,
-                             'noise': tf.float32},
-                            tf.int32))
-    output_tensor_shapes = (({'image': tf.TensorShape(images.shape[1:]),
-                              'noise': tf.TensorShape([noise_size, None])},
-                             tf.TensorShape([])))
+    output_tensor_types = (
+        ({'image': tf.float32, 'noise': tf.float32}, tf.int32))
+    output_tensor_shapes = (
+        ({'image': tf.TensorShape(images.shape[1:]),
+          'noise': tf.TensorShape(noises.shape[1:])},
+         tf.TensorShape([1])))
     dataset = tf.data.Dataset.from_generator(
         gen,
         output_types=output_tensor_types,
@@ -96,17 +88,17 @@ def main():
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 
     # Todo: NWHC or NCWH? Tue 06 Nov 2018 09:36:29 PM KST
-    image_width, image_height = x_train.shape[1:3]
+    image_shape = x_train.shape[1:]
 
     image_feature = tf.feature_column.numeric_column(
-        'image', shape=(image_width, image_height))
+        'image', shape=image_shape)
     noise_feature = tf.feature_column.numeric_column(
-        'noise', shape=(noise_dim))
+        'noise', shape=noise_dim)
 
     # Todo: Reduce params['dim'] Tue 06 Nov 2018 05:05:10 PM KST
     joint_confident_classifier = tf.estimator.Estimator(
         model_fn=confident_classifier,
-        model_dir='/tmp/joint_confident',
+        model_dir='/tmp/joint_confident_vgg',
         params={
             'image': image_feature,
             'noise': noise_feature,
@@ -125,7 +117,6 @@ def main():
                                         batch_size),
         steps=train_steps)
 
-
     eval_result = joint_confident_classifier.evaluate(
         input_fn=lambda: eval_input_fn(x_test, y_test, noise_dim, batch_size),
         steps=train_steps)
@@ -134,6 +125,7 @@ def main():
     )
 
     tf.logging.info('Test set accuracy: {accuracy:0.3f}'.format(**eval_result))
+    tf.logging.info('Prediction: {}'.format(prediction))
 
 if __name__ == "__main__":
     main()
