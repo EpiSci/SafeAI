@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from safeai.models.joint_confident import confident_classifier
+
 tf.logging.set_verbosity(tf.logging.DEBUG)
 cifar10 = tf.keras.datasets.cifar10
 mnist = tf.keras.datasets.mnist
@@ -28,7 +29,8 @@ def vgg_classifier():
     """
     docstring
     """
-    vgg = vgg16.VGG16(include_top=False, weights=None, input_shape=(32, 32, 3), classes=10)
+    vgg = vgg16.VGG16(include_top=False, weights=None,
+                      input_shape=(32, 32, 3), classes=10)
     return vgg
 
 
@@ -39,16 +41,30 @@ def make_generator(images, noises, labels):
     return gen
 
 
-def train_input_fn(features, labels, noise_size, batch_size):
+def train_input_fn(images, labels, noise_size, batch_size):
     """
     docstring
     """
-    noise = np.random.random((features.shape[0], noise_size))
+
+    images = images / 255.
+    noises = np.random.normal(0, 1, (images.shape[0], noise_size))
     labels = labels.astype(np.int32)
-    dataset = tf.data.Dataset.from_tensor_slices(
-        ({'image': features, 'noise': noise}, labels)
-    )
-    dataset = dataset.shuffle(1000).cache().repeat().batch(batch_size)
+
+    gen = make_generator(images, noises, labels)
+    tf.logging.info("i shape: {}, n shape: {}".format(images.shape, noises.shape))
+
+    output_tensor_types = (({'image': tf.float32,
+                             'noise': tf.float32},
+                            tf.int32))
+    output_tensor_shapes = (({'image': tf.TensorShape(images.shape[1:]),
+                              'noise': tf.TensorShape([noise_size, None])},
+                             tf.TensorShape([])))
+    dataset = tf.data.Dataset.from_generator(
+        gen,
+        output_types=output_tensor_types,
+        output_shapes=output_tensor_shapes)
+
+    dataset = dataset.cache().shuffle(1000).repeat().batch(batch_size)
     return dataset
 
 
@@ -77,7 +93,7 @@ def main():
     noise_dim = 100
     num_classes = 10
 
-    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 
     # Todo: NWHC or NCWH? Tue 06 Nov 2018 09:36:29 PM KST
     image_width, image_height = x_train.shape[1:3]
@@ -113,6 +129,9 @@ def main():
     eval_result = joint_confident_classifier.evaluate(
         input_fn=lambda: eval_input_fn(x_test, y_test, noise_dim, batch_size),
         steps=train_steps)
+    prediction = joint_confident_classifier.predict(
+        input_fn=lambda: train_input_fn(x_test, y_test, noise_dim, batch_size)
+    )
 
     tf.logging.info('Test set accuracy: {accuracy:0.3f}'.format(**eval_result))
 
