@@ -9,7 +9,7 @@ import tensorflow as tf
 class UtilsTest(tf.test.TestCase):
 
     def test_kl_divergence_with_uniform(self):
-        with self.cached_session() as sess:
+        with self.test_session() as sess:
             batch_size, num_classes = 3, 10
             target_distribution = tf.nn.softmax(tf.random_normal((batch_size, num_classes)))
             kld = kl_divergence_with_uniform(target_distribution)
@@ -20,7 +20,7 @@ class UtilsTest(tf.test.TestCase):
             sess.run(tf.global_variables_initializer())
             self.assertNotAllClose(tf.zeros((3, 1)), tf.reshape(kld, (3, 1)))
 
-        with self.cached_session() as sess:
+        with self.test_session() as sess:
             batch_size, num_classes = 8, 300
             target_distribution = tf.nn.softmax(tf.random_normal((batch_size, num_classes)))
             kld = kl_divergence_with_uniform(target_distribution)
