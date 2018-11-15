@@ -1,10 +1,10 @@
-# Python CircleCI 2.0 configuration file
-#
-# Check https://circleci.com/docs/2.0/language-python/ for more details
-#
 version: 2
 jobs:
   test-py3-tfcpu:
+
+    environment:
+      - CC_TEST_REPORTER_ID: 97d605718cc9bbe630ee773a4e8b49df32e87616185740c315b7118d59996502
+
     docker:
       - image: circleci/python:3.6.1
 
@@ -12,12 +12,25 @@ jobs:
 
     steps:
       - checkout
-
+      
       # Download and cache dependencies
       - restore_cache:
           keys:
-          - v1-dependencies-py3-{{ checksum "test-requirements.txt" }}-{{ checksum "requirements.txt" }}
-          - v1-dependencies-py3-
+            - v3-dependencies-py3-{{ checksum "test-requirements.txt" }}-{{ checksum "requirements.txt" }}
+            - v3-dependencies-py3-
+
+      - run: 
+          name: make local tools executable
+          command: |
+            echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
+            source $BASH_ENV
+
+      - run:
+          name: Setup Code Climate test-reporter
+          command: |
+            # download test reporter as a static binary
+            curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+            chmod +x ./cc-test-reporter
 
       - run:
           name: install dependencies
@@ -27,14 +40,21 @@ jobs:
       - save_cache:
           paths:
             - ./venv
-          key: v1-dependencies-py3-{{ checksum "requirements.txt" }}-{{ checksum "requirements.txt" }}
+          key: v3-dependencies-py3-{{ checksum "requirements.txt" }}-{{ checksum "requirements.txt" }}
 
       - run:
           name: run tests
           command: |
             python -m unittest discover
+            ./cc-test-reporter before-build
+            py.test safeai/tests --cov-report=xml:coverage.xml --cov=safeai
+            ./cc-test-reporter after-build -t coverage.py coverage.xml
 
   test-py2-tfcpu:
+
+    environment:
+      - CC_TEST_REPORTER_ID: 97d605718cc9bbe630ee773a4e8b49df32e87616185740c315b7118d59996502
+
     docker:
       - image: circleci/python:2.7.14
 
@@ -46,8 +66,20 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-          - v1-dependencies-py2-{{ checksum "test-requirements.txt" }}-{{ checksum "requirements.txt" }}
-          - v1-dependencies-py2-
+            - v3-dependencies-py2-{{ checksum "test-requirements.txt" }}-{{ checksum "requirements.txt" }}
+            - v3-dependencies-py2-
+
+      - run: 
+          name: make local tools executable
+          command: |
+            echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
+            source $BASH_ENV
+
+      - run:
+          name: Setup Code Climate test-reporter
+          command: |
+            curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+            chmod +x ./cc-test-reporter
 
       - run:
           name: install dependencies
@@ -57,12 +89,15 @@ jobs:
       - save_cache:
           paths:
             - ./venv
-          key: v1-dependencies-py2-{{ checksum "requirements.txt" }}-{{ checksum "requirements.txt" }}
+          key: v3-dependencies-py2-{{ checksum "requirements.txt" }}-{{ checksum "requirements.txt" }}
 
       - run:
           name: run tests
           command: |
             python -m unittest discover
+            ./cc-test-reporter before-build
+            py.test safeai/tests --cov-report=xml:coverage.xml --cov=safeai
+            ./cc-test-reporter after-build -t coverage.py coverage.xml
 
 workflows:
   version: 2
