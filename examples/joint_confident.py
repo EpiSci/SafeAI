@@ -18,8 +18,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 import numpy as np
-import tensorflow as tf
 from safeai.models.joint_confident import confident_classifier
+import tensorflow as tf
+from tensorflow.keras.applications import vgg16
 
 tf.logging.set_verbosity(tf.logging.DEBUG)
 cifar10 = tf.keras.datasets.cifar10
@@ -39,7 +40,6 @@ def dcgan_generator():
 
 
 def vgg_classifier():
-    from tensorflow.keras.applications import vgg16
     """
     docstring
     """
@@ -122,9 +122,7 @@ def main():
             'image': image_feature,
             'noise': noise_feature,
             'classes': num_classes,
-            'discriminator': None,
-            'generator': None,
-            'classifier': None,
+            #'classifier': (vgg16.VGG16, {'include_top': False, 'weights': None, 'input_shape': image_feature.shape}),
             'learning_rate': 0.001,
             'beta': 1.0,
         })

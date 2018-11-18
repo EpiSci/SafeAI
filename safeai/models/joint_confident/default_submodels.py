@@ -34,7 +34,8 @@ def default_classifier(input_tensor, classes):
 
     # Define default model
     inputs = tf.keras.layers.Input(shape=image_shape, name='input')
-    net = tf.keras.layers.Dense(image_dim_flatten, activation='relu')(inputs)
+    net = tf.keras.layers.Flatten()(inputs)
+    net = tf.keras.layers.Dense(image_dim_flatten, activation='relu')(net)
     for hidden_units in units_in_layers:
         net = tf.keras.layers.Dense(hidden_units,
                                     activation='relu')(net)
@@ -42,6 +43,27 @@ def default_classifier(input_tensor, classes):
 
     model = tf.keras.Model(inputs=inputs, outputs=logits)
     return model
+
+def default_vgg16(input_tensor, classes):
+    inputs = tf.keras.layers.Input(input_tensor.shape[1:])
+    x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same')(inputs)
+    x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same')(x)
+    x = tf.keras.layers.MaxPooling2D((2, 2), strides=(2, 2))(x)
+
+    x = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(x)
+    x = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(x)
+    x = tf.keras.layers.MaxPooling2D((2, 2), strides=(2, 2))(x)
+
+    x = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(x)
+    x = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(x)
+    x = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(x)
+    x = tf.keras.layers.MaxPooling2D((2, 2), strides=(2, 2))(x)
+
+    x = tf.keras.layers.Flatten(name='flatten')(x)
+    x = tf.keras.layers.Dense(2048, activation='relu', name='fc1')(x)
+    logits = tf.keras.layers.Dense(classes, activation=None)(x)
+    vgg = tf.keras.models.Model(inputs=inputs, outputs=logits)
+    return vgg
 
 
 def default_generator(input_tensor, image_tensor):
@@ -52,7 +74,8 @@ def default_generator(input_tensor, image_tensor):
         Returns:
             model: tf.keras.Model instance
     """
-    image_dim_flatten = np.prod(image_tensor.shape[1:])
+    image_shape = image_tensor.shape[1:]
+    image_dim_flatten = np.prod(image_shape)
     assert len(input_tensor.shape) == 2  # (N, latent_space_size)
     noise_dim = input_tensor.shape[1]
     units_in_layers = gradual_sequence(noise_dim, image_dim_flatten)
@@ -63,7 +86,8 @@ def default_generator(input_tensor, image_tensor):
         net = tf.keras.layers.Dense(hidden_units, activation='relu')(net)
     image_flatten = tf.keras.layers.Dense(image_dim_flatten,
                                           activation=None)(net)
-    model = tf.keras.Model(inputs=inputs, outputs=image_flatten)
+    output_layer = tf.keras.layers.Reshape(image_shape)(image_flatten)
+    model = tf.keras.Model(inputs=inputs, outputs=output_layer)
     return model
 
 
@@ -79,7 +103,8 @@ def default_discriminator(input_tensor):
     units_in_layers = gradual_sequence(image_dim_flatten, 1)
 
     inputs = tf.keras.layers.Input(shape=(image_shape))
-    net = tf.keras.layers.Dense(image_dim_flatten, activation='relu')(inputs)
+    net = tf.keras.layers.Flatten()(inputs)
+    net = tf.keras.layers.Dense(image_dim_flatten, activation='relu')(net)
     for hidden_units in units_in_layers:
         net = tf.keras.layers.Dense(hidden_units, activation='relu')(net)
     logit = tf.keras.layers.Dense(1, activation=None)(net)

@@ -45,7 +45,7 @@ def dummy_mnist_input_fn():
     noise = tf.random_uniform([SAMPLE_SIZE, 100])
     labels = tf.random_uniform([SAMPLE_SIZE, 1], maxval=9, dtype=tf.int32)
     dataset = tf.data.Dataset.from_tensor_slices(
-                ({'image': image, 'noise': noise}, labels))
+        ({'image': image, 'noise': noise}, labels))
     return dataset.repeat().batch(BATCH_SIZE)
 
 
@@ -147,7 +147,7 @@ class JointConfidentModelTest(tf.test.TestCase):
 
     def test_fn_predict_mode(self):
         self.confident_classifier_model_fn_helper(
-                            tf.estimator.ModeKeys.PREDICT)
+            tf.estimator.ModeKeys.PREDICT)
 
 
 class Benchmarks(tf.test.Benchmark):
