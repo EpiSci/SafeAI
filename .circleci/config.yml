@@ -46,6 +46,7 @@ jobs:
           key: v1-1-dependencies-py3-{{ checksum "requirements.txt" }}-{{ checksum "requirements.txt" }}
           paths:
             - ./venv
+            - ~/root/.keras/datasets
 
       - run:
           name: run tests
