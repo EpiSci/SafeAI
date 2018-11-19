@@ -18,4 +18,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from safeai.datasets.keras_datasets import *
+# Dummy datasets for testing
+dataset_shapes = {
+    'mnist': (28, 28),
+    'fashion_mnist': (28, 28),
+    'cifar10': (32, 32, 3),
+}
+
+# args: list of the names of dataset, e.g.)['mnist', 'cifar10']
+# returns: list of dummy dataset object for testing purpose
+def load_test_dummy(dataset_names, batch_size=1):
+    pass

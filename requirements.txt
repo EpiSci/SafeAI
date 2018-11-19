@@ -1,2 +1,4 @@
 # Install dependencies listed in setup.py to avoid duplication
+scipy>=1.1.0
 numpy<=1.14.5,>=1.13.3
+scikit-image>=0.13

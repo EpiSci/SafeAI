@@ -41,7 +41,7 @@ TRAIN_STEPS = 1
 
 
 def dummy_mnist_input_fn():
-    image = tf.random_uniform([SAMPLE_SIZE, 784])
+    image = tf.random_uniform([SAMPLE_SIZE, 28, 28])
     noise = tf.random_uniform([SAMPLE_SIZE, 100])
     labels = tf.random_uniform([SAMPLE_SIZE, 1], maxval=9, dtype=tf.int32)
     dataset = tf.data.Dataset.from_tensor_slices(
@@ -57,8 +57,8 @@ def make_mnist_confident_classifier_estimator():
     return tf.estimator.Estimator(
         model_fn=confident_classifier,
         params={
-            'image': [image_feature],
-            'noise': [noise_feature],
+            'image': image_feature,
+            'noise': noise_feature,
             'classes': MNIST_NUM_CLASSES,
             'discriminator': None,
             'generator': None,
@@ -108,8 +108,8 @@ class JointConfidentModelTest(tf.test.TestCase):
         noise_feature = tf.feature_column.numeric_column(
                                         'noise', shape=NOISE_DIM)
         params = {
-            'image': [image_feature],
-            'noise': [noise_feature],
+            'image': image_feature,
+            'noise': noise_feature,
             'classes': MNIST_NUM_CLASSES,
             'discriminator': None,
             'generator': None,

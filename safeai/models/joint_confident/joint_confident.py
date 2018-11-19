@@ -55,6 +55,7 @@ def confident_classifier(features, labels, mode, params):
     noise_input_layer = tf.feature_column.input_layer(features,
                                                       noise_feature)
 
+    # Need refactor
     image_input_layer = tf.reshape(image_input_layer, [-1, *image_shape])
 
     default_model_args = {

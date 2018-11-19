@@ -25,27 +25,6 @@ from tensorflow.keras.applications import vgg16
 tf.logging.set_verbosity(tf.logging.DEBUG)
 cifar10 = tf.keras.datasets.cifar10
 
-def dcgan_discriminator():
-    """
-    docstring
-    """
-    pass
-
-
-def dcgan_generator():
-    """
-    docstring
-    """
-    pass
-
-
-def vgg_classifier():
-    """
-    docstring
-    """
-    return vgg16.VGG16
-
-
 def make_generator(images, noises, labels):
     def gen():
         for (image, noise), label in zip(zip(images, noises), labels):
@@ -117,7 +96,6 @@ def main():
     # Todo: Reduce params['dim'] Tue 06 Nov 2018 05:05:10 PM KST
     joint_confident_classifier = tf.estimator.Estimator(
         model_fn=confident_classifier,
-        model_dir='/tmp/joint_confident_vgg',
         params={
             'image': image_feature,
             'noise': noise_feature,

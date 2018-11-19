@@ -18,4 +18,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from safeai.datasets.keras_datasets import *
+# Bring wonderful dataset loaders from Keras: https://github.com/keras-team/keras
+import tensorflow as tf
+
+mnist = tf.keras.datasets.mnist
+fashion_mnist = tf.keras.datasets.fashion_mnist
+cifar10 = tf.keras.datasets.cifar10
+cifar100 = tf.keras.datasets.cifar100
