@@ -18,33 +18,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 import numpy as np
-import tensorflow as tf
 from safeai.models.joint_confident import confident_classifier
+import tensorflow as tf
+from tensorflow.keras.applications import vgg16
 
 tf.logging.set_verbosity(tf.logging.DEBUG)
 cifar10 = tf.keras.datasets.cifar10
-
-def dcgan_discriminator():
-    """
-    docstring
-    """
-    pass
-
-
-def dcgan_generator():
-    """
-    docstring
-    """
-    pass
-
-
-def vgg_classifier():
-    from tensorflow.keras.applications import vgg16
-    """
-    docstring
-    """
-    return vgg16.VGG16
-
 
 def make_generator(images, noises, labels):
     def gen():
@@ -117,14 +96,11 @@ def main():
     # Todo: Reduce params['dim'] Tue 06 Nov 2018 05:05:10 PM KST
     joint_confident_classifier = tf.estimator.Estimator(
         model_fn=confident_classifier,
-        model_dir='/tmp/joint_confident_vgg',
         params={
             'image': image_feature,
             'noise': noise_feature,
             'classes': num_classes,
-            'discriminator': None,
-            'generator': None,
-            'classifier': None,
+            #'classifier': (vgg16.VGG16, {'include_top': False, 'weights': None, 'input_shape': image_feature.shape}),
             'learning_rate': 0.001,
             'beta': 1.0,
         })

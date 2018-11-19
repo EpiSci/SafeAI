@@ -43,13 +43,20 @@ def confident_classifier(features, labels, mode, params):
             'beta': 1.0,
         }
     """
+
     image_feature = params['image']
     noise_feature = params['noise']
+
+    image_shape = image_feature.shape
+    noise_shape = noise_feature.shape
 
     image_input_layer = tf.feature_column.input_layer(features,
                                                       image_feature)
     noise_input_layer = tf.feature_column.input_layer(features,
                                                       noise_feature)
+
+    # Need refactor
+    image_input_layer = tf.reshape(image_input_layer, [-1] + list(image_shape))
 
     default_model_args = {
         'classifier': [image_input_layer, params['classes']],
@@ -59,15 +66,18 @@ def confident_classifier(features, labels, mode, params):
 
     submodels = {}
     for submodel_id in ['classifier', 'generator', 'discriminator']:
-        if not params[submodel_id] or submodel_id not in params:
+        if submodel_id not in params or not params[submodel_id]:
             tf.logging.info("Fetching default {}".format(submodel_id))
             args = default_model_args[submodel_id]
             submodel_fn = load_default_submodel(submodel_id)
             submodels[submodel_id] = submodel_fn(*args)
         else:
-            if not callable(params[submodel_id]):
+            cls, args = params[submodel_id]
+            assert isinstance(args, dict)
+            submodel = cls(**args)  # Instantiate
+            submodels[submodel_id] = submodel
+            if not callable(submodels[submodel_id]):
                 raise ValueError("Model should be callable.")
-            submodels[submodel_id] = params[submodel_id]
 
 
     if mode not in [model_fn.ModeKeys.TRAIN, model_fn.ModeKeys.EVAL,
@@ -78,8 +88,12 @@ def confident_classifier(features, labels, mode, params):
     classifier = submodels['classifier']
     discriminator = submodels['discriminator']
     generator = submodels['generator']
+    classifier.summary()
+    discriminator.summary()
+    generator.summary()
 
     logits = classifier(image_input_layer)
+    print("logits.shape: {}".format(logits.shape))
     predicted_classes = tf.argmax(logits, axis=1)
     confident_score = tf.nn.softmax(logits)
 
@@ -100,6 +114,7 @@ def confident_classifier(features, labels, mode, params):
 
     # Put fake image to discriminator
     generated_fake_image = generator(noise_input_layer)
+    print("generated_fake_image.shape: {}".format(generated_fake_image.shape))
 
     d_score_fake = discriminator(generated_fake_image)
 
