@@ -16,8 +16,8 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v4-dependencies-py3-{{ checksum "test-requirements.txt" }}-{{ checksum "requirements.txt" }}
-            - v4-dependencies-py3-
+            - v1-1-dependencies-py3-{{ checksum "test-requirements.txt" }}-{{ checksum "requirements.txt" }}
+            - v1-1-dependencies-py3-
 
       - run: 
           name: make local tools executable
@@ -37,10 +37,15 @@ jobs:
           command: |
             pip install --quiet --user -r test-requirements.txt
 
+      - run:
+          name: cache by running test_datasets.py
+          command: |
+            py.test safeai/tests/test_datasets.py
+
       - save_cache:
+          key: v1-1-dependencies-py3-{{ checksum "requirements.txt" }}-{{ checksum "requirements.txt" }}
           paths:
             - ./venv
-          key: v4-dependencies-py3-{{ checksum "requirements.txt" }}-{{ checksum "requirements.txt" }}
 
       - run:
           name: run tests
@@ -66,8 +71,8 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v4-dependencies-py2-{{ checksum "test-requirements.txt" }}-{{ checksum "requirements.txt" }}
-            - v4-dependencies-py2-
+            - v1-1-dependencies-py2-{{ checksum "test-requirements.txt" }}-{{ checksum "requirements.txt" }}
+            - v1-1-dependencies-py2-
 
       - run: 
           name: make local tools executable
@@ -89,7 +94,7 @@ jobs:
       - save_cache:
           paths:
             - ./venv
-          key: v4-dependencies-py2-{{ checksum "requirements.txt" }}-{{ checksum "requirements.txt" }}
+          key: v1-1-dependencies-py2-{{ checksum "requirements.txt" }}-{{ checksum "requirements.txt" }}
 
       - run:
           name: run tests
