@@ -46,7 +46,8 @@ def default_classifier(input_tensor, classes):
 
 def default_vgg16(input_tensor, classes):
     inputs = tf.keras.layers.Input(input_tensor.shape[1:])
-    x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same')(inputs)
+    x = tf.keras.layers.Flatten()(inputs)
+    x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same')(x)
     x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same')(x)
     x = tf.keras.layers.MaxPooling2D((2, 2), strides=(2, 2))(x)
 
