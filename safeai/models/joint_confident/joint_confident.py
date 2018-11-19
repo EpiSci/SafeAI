@@ -88,9 +88,6 @@ def confident_classifier(features, labels, mode, params):
     classifier = submodels['classifier']
     discriminator = submodels['discriminator']
     generator = submodels['generator']
-    classifier.summary()
-    discriminator.summary()
-    generator.summary()
 
     logits = classifier(image_input_layer)
     print("logits.shape: {}".format(logits.shape))
