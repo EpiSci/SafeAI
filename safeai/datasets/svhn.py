@@ -26,6 +26,7 @@
 import os
 
 import scipy.io
+import numpy as np
 from tensorflow.keras.utils import get_file
 
 def load_data():
@@ -49,4 +50,11 @@ def load_data():
 
     train_x, train_y = transpose_to_nwhc(train['X']), train['y']
     test_x, test_y = transpose_to_nwhc(test['X']), test['y']
+
+    # integer '10' in labels represents digit 0 in image
+    train_y[train_y == 10] = 0
+    test_y[test_y == 10] = 0
+
+
+    # Label index starts at 1 in SVHN dataset
     return (train_x, train_y), (test_x, test_y)

@@ -37,9 +37,9 @@ def confident_classifier(features, labels, mode, params):
             'noise': [noise_feature],
             'classes': num_classes
             'discriminator': None,  <-
-            'generator': None,      <- instantiated keras model,
-            'classifier': None,     <- or chain of callable layers
-            'learning_rate': 0.01,
+            'generator': None,      <- uninstantiated keras model function,
+            'classifier': None,     <-
+            'learning_rate': 0.001,
             'beta': 1.0,
         }
     """
@@ -48,7 +48,6 @@ def confident_classifier(features, labels, mode, params):
     noise_feature = params['noise']
 
     image_shape = image_feature.shape
-    noise_shape = noise_feature.shape
 
     image_input_layer = tf.feature_column.input_layer(features,
                                                       image_feature)
@@ -67,7 +66,6 @@ def confident_classifier(features, labels, mode, params):
     submodels = {}
     for submodel_id in ['classifier', 'generator', 'discriminator']:
         if submodel_id not in params or not params[submodel_id]:
-            tf.logging.info("Fetching default {}".format(submodel_id))
             args = default_model_args[submodel_id]
             submodel_fn = load_default_submodel(submodel_id)
             submodels[submodel_id] = submodel_fn(*args)
@@ -90,7 +88,6 @@ def confident_classifier(features, labels, mode, params):
     generator = submodels['generator']
 
     logits = classifier(image_input_layer)
-    print("logits.shape: {}".format(logits.shape))
     predicted_classes = tf.argmax(logits, axis=1)
     confident_score = tf.nn.softmax(logits)
 
@@ -111,13 +108,12 @@ def confident_classifier(features, labels, mode, params):
 
     # Put fake image to discriminator
     generated_fake_image = generator(noise_input_layer)
-    print("generated_fake_image.shape: {}".format(generated_fake_image.shape))
 
     d_score_fake = discriminator(generated_fake_image)
 
     # Delete these soon
-    #tf.summary.image('real', tf.reshape(image_input_layer[:10], [-1, 32, 32, 3]))
-    #tf.summary.image('fake', tf.reshape(generated_fake_image[:10], [-1, 32, 32, 3]))
+    tf.summary.image('real_image', tf.reshape(image_input_layer[:2], [-1] + list(image_shape)))
+    tf.summary.image('fake_image', tf.reshape(generated_fake_image[:2], [-1] + list(image_shape)))
 
     d_loss_real = tf.reduce_mean(
         tf.nn.sigmoid_cross_entropy_with_logits(
@@ -133,6 +129,8 @@ def confident_classifier(features, labels, mode, params):
 
     # Discriminator loss
     discriminator_loss = d_loss_real + d_loss_fake
+    tf.summary.scalar('d_loss_real', d_loss_real)
+    tf.summary.scalar('d_loss_fake', d_loss_fake)
 
 
     g_loss_from_d = tf.reduce_mean(
@@ -146,6 +144,8 @@ def confident_classifier(features, labels, mode, params):
     confident_score_fake = tf.nn.softmax(logits_fake)
     classifier_uniform_kld_fake =\
         tf.reduce_mean(kl_divergence_with_uniform(confident_score_fake))
+    tf.summary.scalar('classifier_uniform_kld_fake',
+                      classifier_uniform_kld_fake)
 
     # Generator loss
     generator_loss = g_loss_from_d +\
@@ -160,6 +160,7 @@ def confident_classifier(features, labels, mode, params):
     classifier_variables = classifier.trainable_variables
     discriminator_variables = discriminator.trainable_variables
     generator_variables = generator.trainable_variables
+
 
     # Define three training operations
     lr = params['learning_rate']

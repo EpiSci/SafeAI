@@ -17,13 +17,15 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+
 import numpy as np
 from safeai.models.joint_confident import confident_classifier
+from safeai.datasets import cifar10, svhn, stl10, mnist
+
 import tensorflow as tf
 from tensorflow.keras.applications import vgg16
 
-tf.logging.set_verbosity(tf.logging.DEBUG)
-cifar10 = tf.keras.datasets.cifar10
+tf.logging.set_verbosity('DEBUG')
 
 def make_generator(images, noises, labels):
     def gen():
@@ -33,13 +35,9 @@ def make_generator(images, noises, labels):
 
 
 def train_input_fn(images, labels, noise_size, batch_size):
-    """
-    docstring
-    """
 
-    images = images / 255.
     noises = np.random.normal(0, 1, (images.shape[0], noise_size))
-    labels = labels.astype(np.int32)
+    labels = labels.astype(np.int32).squeeze()
 
     gen = make_generator(images, noises, labels)
 
@@ -48,13 +46,13 @@ def train_input_fn(images, labels, noise_size, batch_size):
     output_tensor_shapes = (
         ({'image': tf.TensorShape(images.shape[1:]),
           'noise': tf.TensorShape(noises.shape[1:])},
-         tf.TensorShape([1])))
+         tf.TensorShape([]))) # 1 or 0?
     dataset = tf.data.Dataset.from_generator(
         gen,
         output_types=output_tensor_types,
         output_shapes=output_tensor_shapes)
 
-    dataset = dataset.cache().shuffle(1000).repeat().batch(batch_size)
+    dataset = dataset.cache().shuffle(3000).repeat().batch(batch_size)
     return dataset
 
 
@@ -75,18 +73,27 @@ def eval_input_fn(features, labels, noise_size, batch_size):
 
 
 def main():
-    """
-    docstring
-    """
-    batch_size = 256
+    batch_size = 128
     train_steps = 30000
-    noise_dim = 100
+    noise_dim = 200
     num_classes = 10
 
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 
+    # Normalize image data, 0~255 to -1~1
+    x_train = x_train.astype('float')
+    x_train = (x_train - 127.5) / 127.5
+    x_test = x_test.astype('float')
+    x_test = (x_test - 127.5) / 127.5
+
     # Todo: NWHC or NCWH? Tue 06 Nov 2018 09:36:29 PM KST
-    image_shape = x_train.shape[1:]
+    image_shape = list(x_train.shape[1:])
+
+    # greyscale data should be expanded
+    if len(image_shape) == 2:
+        image_shape += [1]
+        x_train = np.reshape(x_train, [-1] + image_shape)
+        x_test = np.reshape(x_test, [-1] + image_shape)
 
     image_feature = tf.feature_column.numeric_column(
         'image', shape=image_shape)
@@ -96,12 +103,12 @@ def main():
     # Todo: Reduce params['dim'] Tue 06 Nov 2018 05:05:10 PM KST
     joint_confident_classifier = tf.estimator.Estimator(
         model_fn=confident_classifier,
+        model_dir='/tmp/joint_confident-cifar',
         params={
             'image': image_feature,
             'noise': noise_feature,
             'classes': num_classes,
-            #'classifier': (vgg16.VGG16, {'include_top': False, 'weights': None, 'input_shape': image_feature.shape}),
-            'learning_rate': 0.001,
+            'learning_rate': 0.0001,
             'beta': 1.0,
         })
 
