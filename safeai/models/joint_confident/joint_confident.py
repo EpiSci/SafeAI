@@ -109,12 +109,11 @@ def confident_classifier(features, labels, mode, params):
     # Put fake image to discriminator
     generated_fake_image = generator(noise_input_layer)
 
-    # 
     d_score_fake = discriminator(generated_fake_image)
 
     # Delete these soon
-    tf.summary.image('real', tf.reshape(image_input_layer[:2], [-1, 32, 32, 3]))
-    tf.summary.image('fake', tf.reshape(generated_fake_image[:2], [-1, 32, 32, 3]))
+    tf.summary.image('real_image', tf.reshape(image_input_layer[:2], [-1] + list(image_shape)))
+    tf.summary.image('fake_image', tf.reshape(generated_fake_image[:2], [-1] + list(image_shape)))
 
     d_loss_real = tf.reduce_mean(
         tf.nn.sigmoid_cross_entropy_with_logits(
@@ -130,6 +129,8 @@ def confident_classifier(features, labels, mode, params):
 
     # Discriminator loss
     discriminator_loss = d_loss_real + d_loss_fake
+    tf.summary.scalar('d_loss_real', d_loss_real)
+    tf.summary.scalar('d_loss_fake', d_loss_fake)
 
 
     g_loss_from_d = tf.reduce_mean(
@@ -143,6 +144,8 @@ def confident_classifier(features, labels, mode, params):
     confident_score_fake = tf.nn.softmax(logits_fake)
     classifier_uniform_kld_fake =\
         tf.reduce_mean(kl_divergence_with_uniform(confident_score_fake))
+    tf.summary.scalar('classifier_uniform_kld_fake',
+                      classifier_uniform_kld_fake)
 
     # Generator loss
     generator_loss = g_loss_from_d +\

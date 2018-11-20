@@ -20,7 +20,7 @@
 
 import numpy as np
 from safeai.models.joint_confident import confident_classifier
-from safeai.datasets import cifar10, svhn, stl10
+from safeai.datasets import cifar10, svhn, stl10, mnist
 
 import tensorflow as tf
 from tensorflow.keras.applications import vgg16
@@ -37,7 +37,7 @@ def make_generator(images, noises, labels):
 def train_input_fn(images, labels, noise_size, batch_size):
 
     noises = np.random.normal(0, 1, (images.shape[0], noise_size))
-    labels = labels.astype(np.int32)
+    labels = labels.astype(np.int32).squeeze()
 
     gen = make_generator(images, noises, labels)
 
@@ -46,7 +46,7 @@ def train_input_fn(images, labels, noise_size, batch_size):
     output_tensor_shapes = (
         ({'image': tf.TensorShape(images.shape[1:]),
           'noise': tf.TensorShape(noises.shape[1:])},
-         tf.TensorShape([1])))
+         tf.TensorShape([]))) # 1 or 0?
     dataset = tf.data.Dataset.from_generator(
         gen,
         output_types=output_tensor_types,
@@ -87,7 +87,13 @@ def main():
     x_test = (x_test - 127.5) / 127.5
 
     # Todo: NWHC or NCWH? Tue 06 Nov 2018 09:36:29 PM KST
-    image_shape = x_train.shape[1:]
+    image_shape = list(x_train.shape[1:])
+
+    # greyscale data should be expanded
+    if len(image_shape) == 2:
+        image_shape += [1]
+        x_train = np.reshape(x_train, [-1] + image_shape)
+        x_test = np.reshape(x_test, [-1] + image_shape)
 
     image_feature = tf.feature_column.numeric_column(
         'image', shape=image_shape)

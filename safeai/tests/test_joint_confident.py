@@ -34,14 +34,14 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 SAMPLE_SIZE = 512
 BATCH_SIZE = 64
-MNIST_IMAGE_DIM = (28, 28)
+MNIST_IMAGE_DIM = (28, 28, 1)
 NOISE_DIM = 100
 MNIST_NUM_CLASSES = 10
 TRAIN_STEPS = 1
 
 
 def dummy_mnist_input_fn():
-    image = tf.random_uniform([SAMPLE_SIZE, 28, 28])
+    image = tf.random_uniform([SAMPLE_SIZE, 28, 28, 1])
     noise = tf.random_uniform([SAMPLE_SIZE, 100])
     labels = tf.random_uniform([SAMPLE_SIZE, 1], maxval=9, dtype=tf.int32)
     dataset = tf.data.Dataset.from_tensor_slices(
