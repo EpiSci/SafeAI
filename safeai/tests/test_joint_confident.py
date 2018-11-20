@@ -111,9 +111,6 @@ class JointConfidentModelTest(tf.test.TestCase):
             'image': image_feature,
             'noise': noise_feature,
             'classes': MNIST_NUM_CLASSES,
-            'discriminator': None,
-            'generator': None,
-            'classifier': None,
             'learning_rate': 0.001,
             'beta': 1.0,
         }

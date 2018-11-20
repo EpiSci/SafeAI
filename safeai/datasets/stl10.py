@@ -65,16 +65,23 @@ def load_data(shape=(96, 96)):
     train = scipy.io.loadmat(train_path)
     test = scipy.io.loadmat(test_path)
 
+    (train_x, train_y), (test_x, test_y) =\
+        (train['X'], train['y']), (test['X'], test['y'])
+
     # Reshape column-major order images
-    train['X'] = np.reshape(train['X'], (-1, 3, 96, 96))
-    test['X'] = np.reshape(test['X'], (-1, 3, 96, 96))
+    train_x = np.reshape(train_x, (-1, 3, 96, 96))
+    test_x = np.reshape(test_x, (-1, 3, 96, 96))
 
     # Transpose to NCWH data format
-    train['X'] = np.transpose(train['X'], (0, 3, 2, 1))
-    test['X'] = np.transpose(test['X'], (0, 3, 2, 1))
+    train_x = np.transpose(train_x, (0, 3, 2, 1))
+    test_x = np.transpose(test_x, (0, 3, 2, 1))
+
+    # Shift labels from range of 1~10 to 0~9
+    train_y[train_y == 10] = 0
+    test_y[test_y == 10] = 0
 
     if shape == (96, 96):
-        return (train['X'], train['y']), (test['X'], test['y'])
+        return (train_x, train_y), (test_x, test_y)
 
     cache_dir_train = os.path.join(
         os.path.dirname(stl_path),
@@ -85,30 +92,30 @@ def load_data(shape=(96, 96)):
         "cached{}x{}_test.npy".format(width, height))
 
     if os.path.exists(cache_dir_train) and os.path.exists(cache_dir_test):
-        train['X'] = np.load(cache_dir_train)
-        test['X'] = np.load(cache_dir_test)
-        return (train['X'], train['y']), (test['X'], test['y'])
+        train_x = np.load(cache_dir_train)
+        test_x = np.load(cache_dir_test)
+        return (train_x, train_y), (test_x, test_y)
 
     resized_train = np.empty((5000, width, height, 3), dtype='uint8')
     resized_test = np.empty((8000, width, height, 3), dtype='uint8')
 
-    for i, image in enumerate(train['X']):
+    for i, image in enumerate(train_x):
         resized_train[i, :, :, :] = skimage.transform.resize(
             image,
             (width, height, 3),
             mode='constant',
-            anti_aliasing=False,
+            anti_aliasing=True,
             preserve_range=True)
 
-    for i, image in enumerate(test['X']):
+    for i, image in enumerate(test_x):
         resized_test[i, :, :, :] = skimage.transform.resize(
             image,
             (width, height, 3),
             mode='constant',
-            anti_aliasing=False,
+            anti_aliasing=True,
             preserve_range=True)
 
     np.save(cache_dir_train, resized_train)
     np.save(cache_dir_test, resized_test)
 
-    return (resized_train, train['y']), (resized_test, test['y'])
+    return (resized_train, train_y), (resized_test, test_y)
