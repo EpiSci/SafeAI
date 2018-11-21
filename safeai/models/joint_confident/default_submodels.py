@@ -4,13 +4,10 @@ from __future__ import print_function
 
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Input, Dense, Flatten, Reshape
+from tensorflow.keras.layers import Dense, Flatten, Reshape
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, UpSampling2D
 from tensorflow.keras.layers import Activation, BatchNormalization
 from tensorflow.keras.layers import LeakyReLU
-import numpy as np
-
-from safeai.utils import gradual_sequence
 
 def load_default_submodel(submodel_id):
     submodels = {
@@ -20,24 +17,6 @@ def load_default_submodel(submodel_id):
     }
     submodel_fn = submodels[submodel_id]
     return submodel_fn  # Returns one of functions above
-
-
-def default_classifier(input_tensor, classes):
-    image_shape = input_tensor.shape[1:]
-    image_dim_flatten = np.prod(image_shape)
-    units_in_layers = gradual_sequence(image_dim_flatten, classes)
-
-    inputs = tf.keras.layers.Input(shape=image_shape, name='input')
-    x = tf.keras.layers.Flatten()(inputs)
-    x = tf.keras.layers.Dense(image_dim_flatten, activation='relu')(x)
-
-    for hidden_units in units_in_layers:
-        x = tf.keras.layers.Dense(hidden_units, activation='relu')(x)
-
-    logits = tf.keras.layers.Dense(classes, activation=None)(x)
-
-    model = tf.keras.Model(inputs=inputs, outputs=logits)
-    return model
 
 
 def tiny_vgg16(input_tensor, classes):
@@ -65,28 +44,7 @@ def tiny_vgg16(input_tensor, classes):
 
     return model
 
-
-def default_generator(input_tensor, image_tensor):
-    image_shape = image_tensor.shape[1:]
-    image_dim_flatten = np.prod(image_shape)
-    assert len(input_tensor.shape) == 2  # (N, latent_space_size)
-    noise_dim = input_tensor.shape[1]
-    units_in_layers = gradual_sequence(noise_dim, image_dim_flatten)
-
-    inputs = tf.keras.layers.Input(shape=(noise_dim,))
-    net = tf.keras.layers.Dense(noise_dim, activation='relu')(inputs)
-
-    for hidden_units in units_in_layers:
-        net = tf.keras.layers.Dense(hidden_units, activation='relu')(net)
-    image_flatten = tf.keras.layers.Dense(image_dim_flatten,
-                                          activation=None)(net)
-
-    output_layer = tf.keras.layers.Reshape(image_shape)(image_flatten)
-
-    model = tf.keras.Model(inputs=inputs, outputs=output_layer)
-    return model
-
-# Todo: Need more general method for determining node numbers 
+# Todo: Need more general method for determining node numbers
 # in each layer Tue 20 Nov 2018 02:00:50 AM KST
 def dcgan_generator(input_tensor, image_tensor):
 
@@ -132,28 +90,16 @@ def dcgan_generator(input_tensor, image_tensor):
 
     return model
 
-def default_discriminator(input_tensor):
-    image_shape = input_tensor.shape[1:]
-    image_dim_flatten = np.prod(image_shape)
-    units_in_layers = gradual_sequence(image_dim_flatten, 1)
-
-    inputs = tf.keras.layers.Input(shape=(image_shape))
-    net = tf.keras.layers.Flatten()(inputs)
-    net = tf.keras.layers.Dense(image_dim_flatten, activation='relu')(net)
-    for hidden_units in units_in_layers:
-        net = tf.keras.layers.Dense(hidden_units, activation='relu')(net)
-    logit = tf.keras.layers.Dense(1, activation=None)(net)
-    model = tf.keras.Model(inputs=inputs, outputs=logit)
-    r# in each layer Tue 20 Nov 2018 02:00:50 AM KST
 
 def dcgan_discriminator(input_tensor):
+
     image_shape = input_tensor.shape[1:]
 
     with tf.name_scope("discriminator"):
         model = Sequential()
         model.add(Conv2D(64, (5, 5),
-                        padding='same',
-                        input_shape=image_shape))
+                         padding='same',
+                         input_shape=image_shape))
         model.add(LeakyReLU(alpha=0.2))
         model.add(BatchNormalization(momentum=0.8))
 
