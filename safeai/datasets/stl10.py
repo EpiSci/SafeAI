@@ -76,7 +76,7 @@ def load_data(shape=(96, 96)):
     train_x = np.transpose(train_x, (0, 3, 2, 1))
     test_x = np.transpose(test_x, (0, 3, 2, 1))
 
-    # Shift labels from range of 1~10 to 0~9
+    # integer '10' in labels represents class 0 in image
     train_y[train_y == 10] = 0
     test_y[test_y == 10] = 0
 

@@ -20,7 +20,7 @@
 import numpy as np
 import tensorflow as tf
 
-def kl_divergence_with_uniform(target_distribution):
+def kld_with_uniform(target_distribution):
     # Expects (examples, classes) as shape
     num_classes = tf.cast(target_distribution.shape[1], tf.float32)
     uniform_distribution = tf.divide(tf.ones_like(target_distribution), num_classes)
