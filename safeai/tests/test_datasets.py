@@ -26,6 +26,7 @@ import tensorflow as tf
 from safeai.datasets import svhn
 from safeai.datasets import cifar10
 from safeai.datasets import stl10
+from safeai.datasets import tinyimagenet200
 from safeai.datasets import mnist
 from safeai.datasets import fashion_mnist
 
@@ -58,6 +59,14 @@ class DatasetsTest(tf.test.TestCase):
     def test_stl10_32x32(self):
         stl10_data = stl10.load_data(shape=(32, 32))
         self.check_image_shapes(stl10_data, (32, 32, 3), (1,))
+
+    def test_tiny_imagenet(self):
+        tim = tinyimagenet200.load_data()
+        self.check_image_shapes(tim, (64, 64, 3), (1,))
+
+    def test_tiny_imagenet_32x32(self):
+        tim = tinyimagenet200.load_data(shape=(32, 32))
+        self.check_image_shapes(tim, (32, 32, 3), (1,))
 
     def test_mnist(self):
         mnist_data = mnist.load_data()
