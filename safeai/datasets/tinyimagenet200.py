@@ -60,6 +60,7 @@ def fetch_data():
     dataset_subdir = os.path.join(dataset_dirname, dataset_name)
 
     # Extract zip file if it hasn't been extracted
+    # Todo: Sanity check on zipfile
     if not os.path.isdir(dataset_subdir):
         with zipfile.ZipFile(dataset_zippath, 'r') as zip_ref:
             zip_ref.extractall(os.path.dirname(dataset_subdir))
