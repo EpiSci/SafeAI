@@ -6,6 +6,7 @@ __pycache__/
 .ipynb_checkpoints/
 .pytest_cache/
 *.ipynb
+*.h5
 .eggs/
 .coverage
 coverage.xml

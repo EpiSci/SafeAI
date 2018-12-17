@@ -20,10 +20,9 @@
 
 import numpy as np
 from safeai.models.joint_confident import confident_classifier
-from safeai.datasets import cifar10, svhn, stl10, mnist
+from safeai.datasets import cifar10, svhn, stl10, mnist, tinyimagenet200
 
 import tensorflow as tf
-from tensorflow.keras.applications import vgg16
 
 tf.logging.set_verbosity('DEBUG')
 
@@ -74,17 +73,17 @@ def eval_input_fn(features, labels, noise_size, batch_size):
 
 def main():
     batch_size = 128
-    train_steps = 30000
+    train_steps = 10000
     noise_dim = 200
-    num_classes = 10
+    num_classes = 200
 
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 
     # Normalize image data, 0~255 to -1~1
     x_train = x_train.astype('float')
-    x_train = (x_train - 127.5) / 127.5
+    x_train = (x_train - 127.5) / 128
     x_test = x_test.astype('float')
-    x_test = (x_test - 127.5) / 127.5
+    x_test = (x_test - 127.5) / 128
 
     # Todo: NWHC or NCWH? Tue 06 Nov 2018 09:36:29 PM KST
     image_shape = list(x_train.shape[1:])
@@ -108,7 +107,7 @@ def main():
             'image': image_feature,
             'noise': noise_feature,
             'classes': num_classes,
-            'learning_rate': 0.0001,
+            'learning_rate': 0.0003,
             'beta': 1.0,
         })
 
