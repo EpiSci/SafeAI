@@ -40,6 +40,7 @@ def confident_classifier(features, labels, mode, params):
             'generator': None,        : To see how to define your own submodel, check `default_submodels.py` 
             'classifier': None,       : Omit the value, or give `None` to each submodel key to use default submodel(dcgan, vgg16)
             'learning_rate': 0.001,
+            'alpha': 2.0,
             'beta': 1.0,}
     """
 
@@ -126,7 +127,7 @@ def confident_classifier(features, labels, mode, params):
     # KLD(softmax(classifier(fake)) || Uniform)
     kld = tf.reduce_mean(kld_with_uniform(classifier_prob_on_fake))
 
-    generator_loss = g_loss_from_d_fake + (params['beta'] * kld)
+    generator_loss = params['alpha'] * g_loss_from_d_fake + (params['beta'] * kld)
 
     nll_loss = tf.losses.sparse_softmax_cross_entropy(
         labels=labels, logits=classifier_logits)

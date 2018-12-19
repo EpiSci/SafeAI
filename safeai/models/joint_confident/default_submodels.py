@@ -35,7 +35,10 @@ def tiny_vgg16(input_tensor, classes):
 
         model.add(Conv2D(256, (3, 3), activation='relu', padding='same'))
         model.add(Conv2D(256, (3, 3), activation='relu', padding='same'))
-        model.add(Conv2D(256, (3, 3), activation='relu', padding='same'))
+        model.add(MaxPooling2D((2, 2), strides=(2, 2)))
+
+        model.add(Conv2D(512, (3, 3), activation='relu', padding='same'))
+        model.add(Conv2D(512, (3, 3), activation='relu', padding='same'))
         model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
         model.add(Flatten(name='flatten'))

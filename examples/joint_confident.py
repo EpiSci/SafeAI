@@ -18,13 +18,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import argparse
+
 import numpy as np
 from safeai.models.joint_confident import confident_classifier
 from safeai.datasets import cifar10, svhn, stl10, mnist, tinyimagenet200
 
 import tensorflow as tf
+tf.logging.set_verbosity('INFO')
 
-tf.logging.set_verbosity('DEBUG')
 
 def make_generator(images, noises, labels):
     def gen():
@@ -34,56 +36,116 @@ def make_generator(images, noises, labels):
 
 
 def train_input_fn(images, labels, noise_size, batch_size):
-
     noises = np.random.normal(0, 1, (images.shape[0], noise_size))
     labels = labels.astype(np.int32).squeeze()
-
     gen = make_generator(images, noises, labels)
 
-    output_tensor_types = (
+    output_types = (
         ({'image': tf.float32, 'noise': tf.float32}, tf.int32))
-    output_tensor_shapes = (
+    output_shapes = (
         ({'image': tf.TensorShape(images.shape[1:]),
           'noise': tf.TensorShape(noises.shape[1:])},
          tf.TensorShape([]))) # 1 or 0?
     dataset = tf.data.Dataset.from_generator(
         gen,
-        output_types=output_tensor_types,
-        output_shapes=output_tensor_shapes)
+        output_types=output_types,
+        output_shapes=output_shapes)
 
     dataset = dataset.cache().shuffle(3000).repeat().batch(batch_size)
     return dataset
 
 
-def eval_input_fn(features, labels, noise_size, batch_size):
-    """
-    Used in both evaluation, prediction
-    """
+def eval_input_fn(features, labels, noise_size, batch_size=128):
     noise = np.random.random((features.shape[0], noise_size))
-    labels = labels.astype(np.int32)
     features_dict = {'image': features, 'noise': noise}
     if labels is None:
         inputs = features_dict
     else:
+        labels = labels.astype(np.int32)
         inputs = (features_dict, labels)
 
     dataset = tf.data.Dataset.from_tensor_slices(inputs).batch(batch_size)
     return dataset
 
 
-def main():
-    batch_size = 128
+def get_stats(in_probs, out_probs, labels_in=None):
+    from sklearn.metrics import roc_curve, roc_auc_score, average_precision_score
+
+    stats = {}
+    if labels_in is not None:
+        predicted_labels = np.argmax(in_probs, axis=1)
+        labels_in = labels_in.squeeze()
+        assert predicted_labels.shape == labels_in.shape
+        stats['accuracy'] = np.sum(np.equal(predicted_labels, labels_in))\
+                                  / float(len(labels_in))
+
+    in_probs_max = np.max(in_probs, axis=1)
+    out_probs_max = np.max(out_probs, axis=1)
+    trues = np.append(np.ones(len(in_probs)), np.zeros(len(out_probs)))
+    trues_flipped = np.append(np.zeros(len(in_probs)), np.ones(len(out_probs)))
+    probs = np.append(in_probs_max, out_probs_max)
+    fpr, tpr, thresholds = roc_curve(trues, probs)
+    corrects_by_thresh = [len(in_probs[in_probs > thr])
+                          + len(out_probs[out_probs < thr])
+                          for thr in thresholds]
+
+    stats['avg_in_max_softmax'] = np.mean(in_probs_max)
+    stats['avg_out_max_softmax'] = np.mean(out_probs_max)
+    stats['auroc'] = roc_auc_score(trues, probs)
+    stats['aupr-in'] = average_precision_score(trues, probs)
+    stats['aupr-out'] = average_precision_score(trues_flipped, probs)
+    stats['detection_accuracy'] = np.max(corrects_by_thresh) / float(len(probs))
+    stats['fpr-at-tpr95'] = fpr[len(fpr) - len(tpr[tpr > 0.95])]
+
+    return stats
+
+
+def convert_pred_generator_to_array(gen, num_features, num_classes):
+
+    classes = np.empty(num_features, dtype=np.uint8)
+    probabilities = np.empty((num_features, num_classes), dtype=np.float32)
+
+    for i, pred in enumerate(gen):
+        assert isinstance(pred, dict)
+        classes[i] = pred['classes']
+        probabilities[i, :] = np.array(pred['probabilities'])
+
+    return classes, probabilities
+
+def in_out_predictions(classifier, features_in, features_out, labels_in=None, noise_dim=100):
+
+    gen_predictions_in = classifier.predict(
+        input_fn=lambda: eval_input_fn(features_in, labels_in, noise_dim, batch_size=128))
+    gen_predictions_out = classifier.predict(
+        input_fn=lambda: eval_input_fn(features_out, None, noise_dim, batch_size=128))
+
+    _, in_probabilties = convert_pred_generator_to_array(gen_predictions_in,
+                                                         len(features_in),
+                                                         classifier.params['classes'])
+    _, out_probabilties = convert_pred_generator_to_array(gen_predictions_out,
+                                                          len(features_out),
+                                                          classifier.params['classes'])
+    return in_probabilties, out_probabilties
+
+
+def main(args):
+    batch_size = 256
     train_steps = 10000
-    noise_dim = 200
-    num_classes = 200
+    noise_dim = 100
+    num_classes = 10
 
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+    _, (x_test_out, y_test_out) = svhn.load_data()
 
     # Normalize image data, 0~255 to -1~1
-    x_train = x_train.astype('float')
-    x_train = (x_train - 127.5) / 128
-    x_test = x_test.astype('float')
-    x_test = (x_test - 127.5) / 128
+    x_train = x_train.astype(np.float32)
+    x_train = x_train/255.
+    x_test = x_test.astype(np.float32)
+    x_test = x_test/255.
+
+    x_test_out = x_test_out.astype(np.float32)
+    x_test_out = x_test_out/255.
+
 
     # Todo: NWHC or NCWH? Tue 06 Nov 2018 09:36:29 PM KST
     image_shape = list(x_train.shape[1:])
@@ -100,33 +162,59 @@ def main():
         'noise', shape=noise_dim)
 
     # Todo: Reduce params['dim'] Tue 06 Nov 2018 05:05:10 PM KST
-    joint_confident_classifier = tf.estimator.Estimator(
+    classifier = tf.estimator.Estimator(
         model_fn=confident_classifier,
-        model_dir='/tmp/joint_confident-cifar',
+        model_dir=args.model_dir,
         params={
             'image': image_feature,
             'noise': noise_feature,
             'classes': num_classes,
-            'learning_rate': 0.0003,
+            'learning_rate': 0.00003,
+            'alpha': 1.0,
             'beta': 1.0,
         })
 
-    joint_confident_classifier.train(
-        input_fn=lambda: train_input_fn(x_train,
-                                        y_train,
-                                        noise_dim,
-                                        batch_size),
-        steps=train_steps)
+    if args.mode == 'train':
+        classifier.train(
+            input_fn=lambda: train_input_fn(x_train, y_train, noise_dim, batch_size),
+            steps=train_steps)
 
-    eval_result = joint_confident_classifier.evaluate(
-        input_fn=lambda: eval_input_fn(x_test, y_test, noise_dim, batch_size),
-        steps=train_steps)
-    prediction = joint_confident_classifier.predict(
-        input_fn=lambda: train_input_fn(x_test, y_test, noise_dim, batch_size)
-    )
+        eval_result = classifier.evaluate(
+            input_fn=lambda: eval_input_fn(x_test, y_test, noise_dim, batch_size),
+            steps=train_steps)
 
-    tf.logging.info('Test set accuracy: {accuracy:0.3f}'.format(**eval_result))
-    tf.logging.info('Prediction: {}'.format(prediction))
+        tf.logging.info('Test set accuracy: {accuracy:0.3f}'.format(**eval_result))
+
+    elif args.mode == 'test':
+        _, probs = in_out_predictions(classifier,
+                                      x_test,
+                                      x_test,
+                                      labels_in=y_test)
+
+        stats = get_stats(probs, probs, labels_in=y_test)
+        print('accuracy: {}'.format(stats['accuracy']))
+
+    elif args.mode == 'inout':
+        in_probs, out_probs = in_out_predictions(classifier,
+                                                 x_test,
+                                                 x_test_out,
+                                                 labels_in=y_test)
+
+        stats = get_stats(in_probs, out_probs, labels_in=y_test)
+        print(stats)
+
+
+def get_args():
+    default_model_path = '/tmp/joint_confident'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mode', type=str, default='train')
+    parser.add_argument('--model_dir', type=str, default=default_model_path)
+    arguments = parser.parse_args()
+    return arguments
+
 
 if __name__ == "__main__":
-    main()
+    args = get_args()
+    if args.mode not in ['train', 'test', 'inout']:
+        raise ValueError("'mode' must be one of 'train', 'test', 'inout'")
+    main(args)
