@@ -41,7 +41,8 @@ def confident_classifier(features, labels, mode, params):
             'classifier': None,       : Omit the value, or give `None` to each submodel key to use default submodel(dcgan, vgg16)
             'learning_rate': 0.001,
             'alpha': 2.0,
-            'beta': 1.0,}
+            'beta': 1.0,
+            'train_classifier_only': False}
     """
 
     feature_x = params['image']  # feature_column.numeric_column type object
@@ -157,6 +158,7 @@ def confident_classifier(features, labels, mode, params):
                                   global_step=get_global_step(),
                                   var_list=classifier_variables)
 
+
     grouped_ops = tf.group([train_op_d, train_op_g, train_op_c])
     grouped_loss = classifier_loss + generator_loss + discriminator_loss
 
@@ -177,7 +179,7 @@ def confident_classifier(features, labels, mode, params):
     tf.summary.scalar('classifier_loss', classifier_loss)
     tf.summary.scalar('generator_loss', generator_loss)
     tf.summary.scalar('discriminator_loss', discriminator_loss)
-    tf.summary.scalar('accuracy', accuracy[1])
+    tf.summary.scalar('accuracy_train', accuracy[1])
 
     # Eval
     if mode == tf.estimator.ModeKeys.EVAL:
@@ -186,9 +188,14 @@ def confident_classifier(features, labels, mode, params):
 
     # Train: Alternative learning
     if mode == tf.estimator.ModeKeys.TRAIN:
-        est_spec = tf.estimator.EstimatorSpec(mode,
-                                              loss=grouped_loss,
-                                              train_op=grouped_ops)
+        if params['train_classifier_only']:
+            est_spec = tf.estimator.EstimatorSpec(mode,
+                                                  loss=nll_loss,
+                                                  train_op=train_op_c)
+        else:
+            est_spec = tf.estimator.EstimatorSpec(mode,
+                                                  loss=grouped_loss,
+                                                  train_op=grouped_ops)
         return est_spec
 
     raise ValueError("Invalid estimator mode: reached the end of the function")

@@ -70,6 +70,7 @@ def eval_input_fn(features, labels, noise_size, batch_size=128):
     dataset = tf.data.Dataset.from_tensor_slices(inputs).batch(batch_size)
     return dataset
 
+
 def convert_pred_generator_to_array(gen, num_features, num_classes):
 
     classes = np.empty(num_features, dtype=np.uint8)
@@ -81,6 +82,7 @@ def convert_pred_generator_to_array(gen, num_features, num_classes):
         probabilities[i, :] = np.array(pred['probabilities'])
 
     return classes, probabilities
+
 
 def in_out_predictions(classifier, features_in, features_out, labels_in=None, noise_dim=100):
 
@@ -100,7 +102,7 @@ def in_out_predictions(classifier, features_in, features_out, labels_in=None, no
 
 def main(args):
     batch_size = 256
-    epochs = 100
+    amount_of_ten_epochs = 10
     noise_dim = 100
     num_classes = 10
 
@@ -139,16 +141,17 @@ def main(args):
             'image': image_feature,
             'noise': noise_feature,
             'classes': num_classes,
-            'learning_rate': 0.00003,
+            'learning_rate': 0.00009,
             'alpha': 1.0,
-            'beta': 1.0,
+            'beta': 0.0,
+            'train_classifier_only': True
         })
 
     if args.mode == 'train':
-        for epoch in range(epochs):
+        for ten_epochs in range(amount_of_ten_epochs):
             classifier.train(
                 input_fn=lambda: train_input_fn(x_train, y_train, noise_dim, batch_size),
-                max_steps=len(x_train)//batch_size)
+                steps=len(x_train)//batch_size*10)
 
             eval_result = classifier.evaluate(
                 input_fn=lambda: eval_input_fn(x_test, y_test, noise_dim, batch_size),

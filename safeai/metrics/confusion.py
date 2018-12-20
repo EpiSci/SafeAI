@@ -17,8 +17,8 @@ def get_inout_stats(in_probs, out_probs, labels_in=None):
     trues_flipped = np.append(np.zeros(len(in_probs)), np.ones(len(out_probs)))
     probs = np.append(in_probs_max, out_probs_max)
     fpr, tpr, thresholds = roc_curve(trues, probs)
-    corrects_by_thresh = [len(in_probs[in_probs > thr])
-                          + len(out_probs[out_probs < thr])
+    corrects_by_thresh = [len(in_probs_max[in_probs_max > thr])
+                          + len(out_probs_max[out_probs_max < thr])
                           for thr in thresholds]
 
     stats['avg_in_max_softmax'] = np.mean(in_probs_max)
