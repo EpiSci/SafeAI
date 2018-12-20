@@ -64,6 +64,7 @@ def make_mnist_confident_classifier_estimator():
             'generator': None,
             'classifier': None,
             'learning_rate': 0.001,
+            'alpha': 2.0,
             'beta': 1.0,
         })
 
@@ -112,6 +113,7 @@ class JointConfidentModelTest(tf.test.TestCase):
             'noise': noise_feature,
             'classes': MNIST_NUM_CLASSES,
             'learning_rate': 0.001,
+            'alpha': 2.0,
             'beta': 1.0,
         }
         spec = confident_classifier(features, labels, mode, params)
