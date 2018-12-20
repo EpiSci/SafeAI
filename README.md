@@ -28,11 +28,11 @@ only least numbers of parameters are necessary to run target functions.
 ## Installation
 ```bash
 # Install using pip
-pip install safeai
+$ pip install safeai
 
 # Or, install from source:
-git clone https://github.com/EpiSci/SafeAI &&\
-cd SafeAI && pip install -e .
+$ git clone https://github.com/EpiSci/SafeAI &&\
+$ cd SafeAI && pip install -e .
 ```
 
 #### Tensorflow, Python version
@@ -55,14 +55,14 @@ for testing and running the examples in the project.
 Also **they need to be run from project root folder**, not at `examples/` directory, nor `safeai/tests/`.
 ```bash
 # Clone project, cd into project, install dependencies
-git clone https://github.com/EpiSci/SafeAI &&\
-cd SafeAI && pip install -e .
+$ git clone https://github.com/EpiSci/SafeAI &&\
+$ cd SafeAI && pip install -e .
 
 # To run the example:
-python -m examples.[script name without '.py'] # e.g.) python -m examples.joint_confident
+$ python -m examples.[script name without '.py'] # e.g.) python -m examples.joint_confident
 
 # To execute all tests
-python -m unittest discover
+$ python -m unittest discover
 ```
 ## List of predictive uncertainty models available:
 - **Joint Confident Classifier** [(safeai/models/joint_confident.py)](https://github.com/EpiSci/SafeAI/blob/master/safeai/models/joint_confident/joint_confident.py)  
