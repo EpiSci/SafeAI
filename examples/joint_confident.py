@@ -22,6 +22,7 @@ import argparse
 
 import numpy as np
 from safeai.models.joint_confident import confident_classifier
+import safeai.metrics.confusion as confusion
 from safeai.datasets import cifar10, svhn, stl10, mnist, tinyimagenet200
 
 import tensorflow as tf
@@ -41,7 +42,9 @@ def train_input_fn(images, labels, noise_size, batch_size):
     gen = make_generator(images, noises, labels)
 
     output_types = (
-        ({'image': tf.float32, 'noise': tf.float32}, tf.int32))
+        ({'image': tf.float32,
+          'noise': tf.float32},
+         tf.int32))
     output_shapes = (
         ({'image': tf.TensorShape(images.shape[1:]),
           'noise': tf.TensorShape(noises.shape[1:])},
@@ -66,39 +69,6 @@ def eval_input_fn(features, labels, noise_size, batch_size=128):
 
     dataset = tf.data.Dataset.from_tensor_slices(inputs).batch(batch_size)
     return dataset
-
-
-def get_stats(in_probs, out_probs, labels_in=None):
-    from sklearn.metrics import roc_curve, roc_auc_score, average_precision_score
-
-    stats = {}
-    if labels_in is not None:
-        predicted_labels = np.argmax(in_probs, axis=1)
-        labels_in = labels_in.squeeze()
-        assert predicted_labels.shape == labels_in.shape
-        stats['accuracy'] = np.sum(np.equal(predicted_labels, labels_in))\
-                                  / float(len(labels_in))
-
-    in_probs_max = np.max(in_probs, axis=1)
-    out_probs_max = np.max(out_probs, axis=1)
-    trues = np.append(np.ones(len(in_probs)), np.zeros(len(out_probs)))
-    trues_flipped = np.append(np.zeros(len(in_probs)), np.ones(len(out_probs)))
-    probs = np.append(in_probs_max, out_probs_max)
-    fpr, tpr, thresholds = roc_curve(trues, probs)
-    corrects_by_thresh = [len(in_probs[in_probs > thr])
-                          + len(out_probs[out_probs < thr])
-                          for thr in thresholds]
-
-    stats['avg_in_max_softmax'] = np.mean(in_probs_max)
-    stats['avg_out_max_softmax'] = np.mean(out_probs_max)
-    stats['auroc'] = roc_auc_score(trues, probs)
-    stats['aupr-in'] = average_precision_score(trues, probs)
-    stats['aupr-out'] = average_precision_score(trues_flipped, probs)
-    stats['detection_accuracy'] = np.max(corrects_by_thresh) / float(len(probs))
-    stats['fpr-at-tpr95'] = fpr[len(fpr) - len(tpr[tpr > 0.95])]
-
-    return stats
-
 
 def convert_pred_generator_to_array(gen, num_features, num_classes):
 
@@ -130,7 +100,7 @@ def in_out_predictions(classifier, features_in, features_out, labels_in=None, no
 
 def main(args):
     batch_size = 256
-    train_steps = 10000
+    epochs = 100
     noise_dim = 100
     num_classes = 10
 
@@ -175,15 +145,16 @@ def main(args):
         })
 
     if args.mode == 'train':
-        classifier.train(
-            input_fn=lambda: train_input_fn(x_train, y_train, noise_dim, batch_size),
-            steps=train_steps)
+        for epoch in range(epochs):
+            classifier.train(
+                input_fn=lambda: train_input_fn(x_train, y_train, noise_dim, batch_size),
+                max_steps=len(x_train)//batch_size)
 
-        eval_result = classifier.evaluate(
-            input_fn=lambda: eval_input_fn(x_test, y_test, noise_dim, batch_size),
-            steps=train_steps)
+            eval_result = classifier.evaluate(
+                input_fn=lambda: eval_input_fn(x_test, y_test, noise_dim, batch_size),
+                steps=len(x_test)//batch_size)
 
-        tf.logging.info('Test set accuracy: {accuracy:0.3f}'.format(**eval_result))
+            tf.logging.info('Test set accuracy: {accuracy:0.3f}'.format(**eval_result))
 
     elif args.mode == 'test':
         _, probs = in_out_predictions(classifier,
@@ -191,7 +162,7 @@ def main(args):
                                       x_test,
                                       labels_in=y_test)
 
-        stats = get_stats(probs, probs, labels_in=y_test)
+        stats = confusion.get_inout_stats(probs, probs, labels_in=y_test)
         print('accuracy: {}'.format(stats['accuracy']))
 
     elif args.mode == 'inout':
@@ -200,7 +171,7 @@ def main(args):
                                                  x_test_out,
                                                  labels_in=y_test)
 
-        stats = get_stats(in_probs, out_probs, labels_in=y_test)
+        stats = confusion.get_inout_stats(in_probs, out_probs, labels_in=y_test)
         print(stats)
 
 

@@ -177,6 +177,7 @@ def confident_classifier(features, labels, mode, params):
     tf.summary.scalar('classifier_loss', classifier_loss)
     tf.summary.scalar('generator_loss', generator_loss)
     tf.summary.scalar('discriminator_loss', discriminator_loss)
+    tf.summary.scalar('accuracy', accuracy[1])
 
     # Eval
     if mode == tf.estimator.ModeKeys.EVAL:
