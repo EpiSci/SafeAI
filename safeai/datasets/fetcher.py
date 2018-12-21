@@ -18,4 +18,29 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from safeai.datasets import mnist
+from safeai.datasets import fashion_mnist
+from safeai.datasets import cifar10
+from safeai.datasets import cifar100
+from safeai.datasets import stl10
+from safeai.datasets import svhn
+from safeai.datasets import tinyimagenet200
+
+RGB_DATA_MAP = {
+    'cifar10': cifar10,
+    'cifar100': cifar100,
+    'stl10': stl10,
+    'svhn': svhn,
+    'tinyimagenet200': tinyimagenet200,
+}
+
+GRAY_DATA_MAP = {
+    'mnist': mnist,
+    'fashion_mnist': fashion_mnist,
+}
+
+class DatasetFetcher:
+    def __init__(self):
+        pass
+
 
