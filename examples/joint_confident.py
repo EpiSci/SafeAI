@@ -37,18 +37,19 @@ def make_generator(images, noises, labels):
 
 
 def train_input_fn(images, labels, noise_size, batch_size):
+
+    image_shape = images.shape[1:]
     noises = np.random.normal(0, 1, (images.shape[0], noise_size))
     labels = labels.astype(np.int32).squeeze()
     gen = make_generator(images, noises, labels)
 
-    output_types = (
-        ({'image': tf.float32,
-          'noise': tf.float32},
-         tf.int32))
+    output_types = (({'image': tf.float32, 'noise': tf.float32},
+                     tf.int32))
     output_shapes = (
-        ({'image': tf.TensorShape(images.shape[1:]),
-          'noise': tf.TensorShape(noises.shape[1:])},
+        ({'image': tf.TensorShape(image_shape), 
+          'noise': tf.TensorShape(noise_size)},
          tf.TensorShape([]))) # 1 or 0?
+
     dataset = tf.data.Dataset.from_generator(
         gen,
         output_types=output_types,
@@ -144,7 +145,7 @@ def main(args):
             'learning_rate': 0.00009,
             'alpha': 1.0,
             'beta': 0.0,
-            'train_classifier_only': True
+            'train_classifier_only': args.train_classifier_only
         })
 
     if args.mode == 'train':
@@ -183,6 +184,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', type=str, default='train')
     parser.add_argument('--model_dir', type=str, default=default_model_path)
+    parser.add_argument('--train_classifier_only', type=str, default=False)
     arguments = parser.parse_args()
     return arguments
 

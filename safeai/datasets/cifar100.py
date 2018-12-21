@@ -18,4 +18,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from safeai.datasets.keras import *
+import tensorflow as tf
+
+# Brought dataset loaders from Keras: https://github.com/keras-team/keras
+def load_data(shape=(32, 32)):
+    if not shape == (32, 32):
+        raise ValueError('cifar10 data only supports shape (32, 32).')
+    return tf.keras.datasets.cifar100.load_data()

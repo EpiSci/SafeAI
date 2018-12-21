@@ -18,4 +18,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from safeai.datasets.keras import *
+# Brought dataset loaders from Keras: https://github.com/keras-team/keras
+import tensorflow as tf
+
+mnist = tf.keras.datasets.mnist
+fashion_mnist = tf.keras.datasets.fashion_mnist
+# Todo: Enable 'shape' argument on both cifar datasets Fri 21 Dec 2018 10:27:33 AM KST
+cifar100 = tf.keras.datasets.cifar100
