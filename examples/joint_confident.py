@@ -28,14 +28,14 @@ from safeai.datasets import cifar10, svhn, stl10, mnist, tinyimagenet200
 import tensorflow as tf
 tf.logging.set_verbosity('INFO')
 
-
+# Delegate to model code
 def make_generator(images, noises, labels):
     def gen():
         for (image, noise), label in zip(zip(images, noises), labels):
             yield {'image': image, 'noise': noise}, label
     return gen
 
-
+# Delegate to model code(default mode)
 def train_input_fn(images, labels, noise_size, batch_size):
 
     image_shape = images.shape[1:]
@@ -46,9 +46,9 @@ def train_input_fn(images, labels, noise_size, batch_size):
     output_types = (({'image': tf.float32, 'noise': tf.float32},
                      tf.int32))
     output_shapes = (
-        ({'image': tf.TensorShape(image_shape), 
+        ({'image': tf.TensorShape(image_shape),
           'noise': tf.TensorShape(noise_size)},
-         tf.TensorShape([]))) # 1 or 0?
+         tf.TensorShape([])))
 
     dataset = tf.data.Dataset.from_generator(
         gen,
@@ -59,6 +59,7 @@ def train_input_fn(images, labels, noise_size, batch_size):
     return dataset
 
 
+# Delegate to model code(default mode)
 def eval_input_fn(features, labels, noise_size, batch_size=128):
     noise = np.random.random((features.shape[0], noise_size))
     features_dict = {'image': features, 'noise': noise}
@@ -72,6 +73,7 @@ def eval_input_fn(features, labels, noise_size, batch_size=128):
     return dataset
 
 
+# Delegate to utils code(default mode)
 def convert_pred_generator_to_array(gen, num_features, num_classes):
 
     classes = np.empty(num_features, dtype=np.uint8)
@@ -102,11 +104,6 @@ def in_out_predictions(classifier, features_in, features_out, labels_in=None, no
 
 
 def main(args):
-    batch_size = 256
-    amount_of_ten_epochs = 10
-    noise_dim = 100
-    num_classes = 10
-
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
     _, (x_test_out, y_test_out) = svhn.load_data()
 
@@ -119,22 +116,17 @@ def main(args):
     x_test_out = x_test_out.astype(np.float32)
     x_test_out = x_test_out/255.
 
-
-    # Todo: NWHC or NCWH? Tue 06 Nov 2018 09:36:29 PM KST
+    batch_size = 256
+    amount_of_ten_epochs = 10
+    num_classes = 10
+    noise_dim = 100
     image_shape = list(x_train.shape[1:])
-
-    # greyscale data should be expanded
-    if len(image_shape) == 2:
-        image_shape += [1]
-        x_train = np.reshape(x_train, [-1] + image_shape)
-        x_test = np.reshape(x_test, [-1] + image_shape)
 
     image_feature = tf.feature_column.numeric_column(
         'image', shape=image_shape)
     noise_feature = tf.feature_column.numeric_column(
         'noise', shape=noise_dim)
 
-    # Todo: Reduce params['dim'] Tue 06 Nov 2018 05:05:10 PM KST
     classifier = tf.estimator.Estimator(
         model_fn=confident_classifier,
         model_dir=args.model_dir,

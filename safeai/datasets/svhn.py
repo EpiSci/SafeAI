@@ -29,7 +29,8 @@ import scipy.io
 import numpy as np
 from tensorflow.keras.utils import get_file
 
-def load_data():
+# Todo: broken shape parameter
+def load_data(shape=(32, 32)):
     dirname = os.path.join('datasets', 'svhn')
     base = 'http://ufldl.stanford.edu/housenumbers/'
     files = ['train_32x32.mat', 'test_32x32.mat']

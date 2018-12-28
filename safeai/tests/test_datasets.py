@@ -32,6 +32,7 @@ from safeai.datasets import fashion_mnist
 
 
 # Todo: Tests on dataset module needs to be more specific
+# Todo: argument 'shape' must behave consistently on all datasets available in the project.
 class DatasetsTest(tf.test.TestCase):
 
     def check_image_shapes(self, data, image_shape, label_shape):

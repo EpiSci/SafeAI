@@ -17,14 +17,12 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-import numpy as np
-import tensorflow as tf
 
-def kld_with_uniform(target_distribution):
-    # Expects (examples, classes) as shape
-    _, classes = target_distribution.shape
-    num_classes = tf.cast(classes, tf.float32)
-    uniform_distribution = tf.divide(tf.ones_like(target_distribution), num_classes)
-    x = tf.distributions.Categorical(probs=target_distribution)
-    y = tf.distributions.Categorical(probs=uniform_distribution)
-    return tf.distributions.kl_divergence(x, y, allow_nan_stats=False) * num_classes  # scaling factor
+class Experiment:
+    def predict(self):
+        raise NotImplementedException
+
+
+class KnownUnknownExperiment(Experiment):
+    def predict(self):
+        pass
