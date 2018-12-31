@@ -29,7 +29,7 @@ import tensorflow as tf
 tf.logging.set_verbosity('INFO')
 
 # Delegate to model code
-def make_generator(images, noises, labels):
+def make_generator_from_array(images, noises, labels):
     def gen():
         for (image, noise), label in zip(zip(images, noises), labels):
             yield {'image': image, 'noise': noise}, label
@@ -41,10 +41,12 @@ def train_input_fn(images, labels, noise_size, batch_size):
     image_shape = images.shape[1:]
     noises = np.random.normal(0, 1, (images.shape[0], noise_size))
     labels = labels.astype(np.int32).squeeze()
-    gen = make_generator(images, noises, labels)
+    gen = make_generator_from_array(images, noises, labels)
 
-    output_types = (({'image': tf.float32, 'noise': tf.float32},
-                     tf.int32))
+    output_types = (
+        ({'image': tf.float32,
+          'noise': tf.float32},
+         tf.int32))
     output_shapes = (
         ({'image': tf.TensorShape(image_shape),
           'noise': tf.TensorShape(noise_size)},
@@ -104,10 +106,12 @@ def in_out_predictions(classifier, features_in, features_out, labels_in=None, no
 
 
 def main(args):
+    
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
     _, (x_test_out, y_test_out) = svhn.load_data()
 
     # Normalize image data, 0~255 to -1~1
+    # Todo: generalize image preprocessing at dataset module
     x_train = x_train.astype(np.float32)
     x_train = x_train/255.
     x_test = x_test.astype(np.float32)
@@ -121,6 +125,7 @@ def main(args):
     num_classes = 10
     noise_dim = 100
     image_shape = list(x_train.shape[1:])
+
 
     image_feature = tf.feature_column.numeric_column(
         'image', shape=image_shape)
@@ -144,11 +149,11 @@ def main(args):
         for ten_epochs in range(amount_of_ten_epochs):
             classifier.train(
                 input_fn=lambda: train_input_fn(x_train, y_train, noise_dim, batch_size),
-                steps=len(x_train)//batch_size*10)
+                steps=1000)
 
             eval_result = classifier.evaluate(
                 input_fn=lambda: eval_input_fn(x_test, y_test, noise_dim, batch_size),
-                steps=len(x_test)//batch_size)
+                steps=100)
 
             tf.logging.info('Test set accuracy: {accuracy:0.3f}'.format(**eval_result))
 

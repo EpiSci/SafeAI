@@ -57,21 +57,18 @@ class ImageDatasetFetcher(DatasetFetcher):
 
     def fetch_train_generator(self, dataset_names):
         for dataset_name in dataset_names:
-            yield single_element(dataset_name, 'train')
+            train_data, _ = self.fetch(dataset_name)
+            (x_data, y_data) = train_data
+            for x, y in zip(x_data, y_data):
+                yield x, y
 
 
     def fetch_test_generator(self, dataset_names):
         for dataset_name in dataset_names:
-            yield single_element(dataset_name, 'test')
-
-
-    def single_element(self, dataset_name, test_or_train='train'):
-        if test_or_train == 'test':
-            _, (x_data, y_data) = self.fetch(dataset_name)
-        else:
-            (x_data, y_data), _ = self.fetch(dataset_name)
-        for x, y in zip(x_data, y_data):
-            yield x, y
+            _, test_data = self.fetch(dataset_name)
+            (x_data, y_data) = test_data
+            for x, y in zip(x_data, y_data):
+                yield x, y
 
 
     def exist_check(self, dataset_name):
